@@ -1,0 +1,18 @@
+{
+  "capturedAt": "2026-09-10",
+  "viewport": { "width": 1280, "height": 720, "dpr": 2 },
+  "target": {
+    "selector": ".product-viewer-enhanced-container.product-viewer-canvas > canvas",
+    "canvasAttributes": { "width": 2560, "height": 1520 },
+    "owner": "Apple ProductViewerWebGL / Lotus scene runtime",
+    "context": "WebGL canvas",
+    "truth": "SOURCE"
+  },
+  "interaction": {
+    "foldSlider": { "min": 0, "max": 1, "default": 0.333, "truth": "SOURCE" },
+    "namedStates": ["PT_Landscape", "PT_Portrait", "PT_Closed", "PT_Laptop", "PT_Tent", "PT_Durability"],
+    "truth": "SOURCE"
+  },
+  "automationLimit": "The inspection browser exposes a DOM proxy without a usable CanvasRenderingContext or page-global Lotus object; source scene definitions provide the target-bound runtime facts.",
+  "limitTruth": "SOURCE"
+}

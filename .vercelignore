@@ -1,0 +1,10 @@
+.web-shader-extractor/
+evidence/
+*.jpg
+foldable.html
+index.html
+scout-card.json
+extraction-report.md
+qa-report.md
+known-gaps.md
+replay-manifest.json

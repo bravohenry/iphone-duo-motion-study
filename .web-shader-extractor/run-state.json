@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "phase": "validated",
+  "route": "PIPELINE_REPLAY",
+  "targetLock": "locked",
+  "lastValidated": "2026-09-10",
+  "validation": [
+    "bundle builds",
+    "landing WebGL model loads",
+    "named pose retains live model",
+    "static-pose fallback DOM removed",
+    "inner and outer screen orientation corrected",
+    "device-local Wipe projection compiles",
+    "left-panel blur preserves content across valid mip LODs"
+  ]
+}

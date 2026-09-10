@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 3,
+  "source": {
+    "url": "https://www.apple.com/iphone-duo/",
+    "canonicalUrl": "https://www.apple.com/iphone-duo/",
+    "route": "/iphone-duo/",
+    "viewport": { "width": 1280, "height": 720, "dpr": 2 },
+    "browser": "Codex In-app Browser",
+    "backend": "WebGL canvas observed; runtime context proxy unavailable",
+    "capturedAt": "2026-09-10"
+  },
+  "candidates": [{
+    "id": "product-viewer-canvas",
+    "selector": ".product-viewer-enhanced-container.product-viewer-canvas > canvas",
+    "frame": "main",
+    "context": "webgl",
+    "owner": "Apple ProductViewerWebGL / Lotus scene runtime",
+    "visualCoverage": "high",
+    "temporalActivity": "high",
+    "ablationImpact": "not run: source scene and canvas parent bind ownership",
+    "evidence": ["evidence/runtime/product-viewer.json", "evidence/source/scene-facts.md"]
+  }],
+  "lockStatus": "locked",
+  "allowedLockStatus": ["unlocked", "provisional", "attributed", "locked"],
+  "allowedTruth": ["SOURCE", "PARTIAL", "GUESS"],
+  "targetSet": ["product-viewer-canvas", "product-viewer controls", "source pose fallback media"],
+  "alternatives": [{ "id": "page-fallback-images", "reason": "Excluded as sole target: they provide 2D fallback poses but do not own the continuous fold or free-view interaction.", "truth": "SOURCE" }],
+  "effectBoundary": "surface-plus-dom",
+  "hypotheses": [{
+    "id": "hyp-lotus",
+    "statement": "The requested product viewer is a public Lotus scene using the displayed canvas plus DOM controls.",
+    "status": "supported",
+    "evidenceFor": ["ev-canvas", "ev-scene"],
+    "evidenceAgainst": [],
+    "truth": "SOURCE"
+  }],
+  "allowedHypothesisStatus": ["untested", "supported", "contradicted"],
+  "interactions": ["range slider maps to continuous Hinge target", "six named pose controls map to PT variants", "interactive camera is available in the landing fold state"],
+  "scopeRisk": "low",
+  "blockingUnknowns": [],
+  "nextProbe": {
+    "type": "source-map",
+    "target": "product-viewer-canvas",
+    "resolves": ["full custom-material implementation"],
+    "distinguishes": ["hyp-lotus", "fallback-only"],
+    "expectedOutcomes": [{ "observation": "public source names Hinge, WallpaperRenderer, and FadeThroughBlack", "eliminates": ["fallback-only"] }]
+  },
+  "evidence": [
+    { "id": "ev-canvas", "path": "evidence/runtime/product-viewer.json", "truth": "SOURCE", "notes": "Observed 2560x1520 canvas under the target product viewer at DPR 2." },
+    { "id": "ev-scene", "path": "evidence/source/scene-facts.md", "truth": "SOURCE", "notes": "Public scene and runtime definitions bind the canvas to the Lotus scene and its custom components." }
+  ],
+  "gateDecision": {
+    "targetAttributed": true,
+    "targetLocked": true,
+    "requiredEvidence": {
+      "visualAttribution": [{ "status": "passed", "evidenceId": "ev-canvas", "path": "evidence/runtime/product-viewer.json", "truth": "SOURCE", "notes": "Expanded viewer screenshot and accessible fold controls co-occur with the canvas." }],
+      "targetSet": [{ "status": "passed", "evidenceId": "ev-canvas", "path": "evidence/runtime/product-viewer.json", "truth": "SOURCE", "notes": "Canvas plus product controls and fallback media are explicitly scoped." }],
+      "contextAndOwner": [{ "status": "passed", "evidenceId": "ev-scene", "path": "evidence/source/scene-facts.md", "truth": "SOURCE", "notes": "Public page runtime calls Lotus scene loading for this viewer." }],
+      "targetBoundSourceOrFramework": [{ "status": "passed", "evidenceId": "ev-scene", "path": "evidence/source/scene-facts.md", "truth": "SOURCE", "notes": "Scene definition and runtime chunk identify Lotus custom components." }],
+      "effectBoundary": [{ "status": "passed", "evidenceId": "ev-canvas", "path": "evidence/runtime/product-viewer.json", "truth": "SOURCE", "notes": "Effect uses both canvas rendering and DOM controls." }],
+      "primaryTraceRoute": [{ "status": "passed", "evidenceId": "ev-scene", "path": "evidence/source/scene-facts.md", "truth": "SOURCE", "notes": "Selected route is public scene/runtime trace." }],
+      "alternativesExcluded": [{ "status": "passed", "evidenceId": "ev-scene", "path": "evidence/source/scene-facts.md", "truth": "SOURCE", "notes": "Fallback images lack the interactive render path." }]
+    },
+    "blockers": [],
+    "decidedAt": "2026-09-10"
+  },
+  "truthNotes": {
+    "source": ["Canvas location, source scene, runtime names, pose controls, fold range, camera parameters."],
+    "partial": ["Exact Lotus material/pass wiring remains embedded in the vendor runtime."],
+    "guess": []
+  }
+}

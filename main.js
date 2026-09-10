@@ -171,17 +171,18 @@ function buildExplosionMap(root) {
       depth,
       vertical * (isDetail ? .68 : .12)
     );
-    explosionParts.push({ node, base: node.position.clone(), offset });
+    explosionParts.push({ node, base: node.position.clone(), offset, isPanel });
   });
 }
 
 function applyExplosion(value) {
   explosion = normalizeFold(value);
   const eased = explosion * explosion * (3 - 2 * explosion);
-  explosionParts.forEach(({ node, base, offset, screenMaterial }) => {
+  explosionParts.forEach(({ node, base, offset, screenMaterial, isPanel }) => {
     node.matrixAutoUpdate = true;
     node.position.copy(base).addScaledVector(offset, eased);
     node.updateMatrix();
+    if (isPanel) node.visible = eased < .02;
     if (screenMaterial) {
       node.visible = eased < .02;
       if (!screenMaterial.userData.anatomyDefaults) {

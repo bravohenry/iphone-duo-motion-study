@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 Three.js、KTX2/EXR/glTF 加载器、Apple 公开交付的五层壁纸资源与从目标 bundle 提取的 GLSL。
- * [OUTPUT]: 提供 createDeviceWallpaperRenderer，输出可直接绑定到内外屏 emissiveMap 的动态壁纸纹理。
- * [POS]: iphone-duo-motion-study 的屏幕渲染子系统；处理壁纸、UI、FramePass、两遍 Wipe blur 与设备局部投影。
+ * [OUTPUT]: 提供 createDeviceWallpaperRenderer、内外屏动态纹理、逐阶段调试纹理与可控壁纸层数。
+ * [POS]: iphone-duo-motion-study 的屏幕渲染子系统；处理壁纸、UI、FramePass、两遍 Wipe blur、教学阶段输出与设备局部投影。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import * as THREE from './assets/three.module.min.js?v=165';

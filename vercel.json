@@ -1,6 +1,6 @@
 {
   "cleanUrls": true,
   "rewrites": [
-    { "source": "/", "destination": "/foldable-v2.html" }
+    { "source": "/", "destination": "/foldable-v2" }
   ]
 }

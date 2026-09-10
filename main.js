@@ -68,6 +68,7 @@ let wallpaperRenderer;
 let viewMode = 'demo';
 let explosion = 0;
 let explosionTarget = 0;
+let explosionEased = 0;
 let explosionParts = [];
 let selectedPipelineStage = pipelineStages[0];
 let previousFrameTime = performance.now();
@@ -151,58 +152,37 @@ function buildExplosionMap(root) {
     const isOuter = node.name === 'skeleton_0_7_outerDisplayScreenTexture_geo';
     // 屏幕贴图是讲解坐标基准，不参与爆炸；拆的是它上下方的真实结构件。
     if (isInner || isOuter) {
-      const screenMaterial = Array.isArray(node.material) ? node.material[0] : node.material;
-      explosionParts.push({ node, base: node.position.clone(), offset: new THREE.Vector3(), screenMaterial });
+      explosionParts.push({ node, offset: new THREE.Vector3() });
       return;
     }
 
     const footprint = Math.max(extent.x, extent.z);
     const isDetail = footprint < 2.6;
     const isPanel = extent.x > 5.2 && extent.z > 8;
-    const depth = center.y > .18 ? 1.8
-      : center.y > -.04 ? 1.05
-        : center.y > -.24 ? .4
-          : center.y > -.44 ? -.5
-            : center.y > -.68 ? -1.2 : -1.9;
     const side = Math.abs(center.x) < .5 ? 0 : Math.sign(center.x);
     const vertical = Math.abs(center.z) < 1 ? 0 : Math.sign(center.z);
-    const offset = new THREE.Vector3(
-      depth * 1.55 + side * (isDetail ? 1.05 : isPanel ? .22 : .48),
-      depth,
-      vertical * (isDetail ? .68 : .12)
-    );
-    explosionParts.push({ node, base: node.position.clone(), offset, isPanel });
+    const layer = THREE.MathUtils.clamp((center.y + .28) * 8.5, -5, 5);
+    const offset = isPanel
+      ? new THREE.Vector3(layer * 1.2, vertical * .35, layer * .8)
+      : new THREE.Vector3(layer * .85 + side * (isDetail ? 4 : 1.4), vertical * (isDetail ? 2.8 : .8), layer * .65);
+    node.userData.explosionOffsetWorld = offset;
+    const previousRender = node.onBeforeRender;
+    node.onBeforeRender = function onBeforeExplodedPart(...args) {
+      previousRender?.apply(this, args);
+      const worldOffset = this.userData.explosionOffsetWorld;
+      if (!worldOffset || explosionEased === 0) return;
+      this.matrixWorld.elements[12] += worldOffset.x * explosionEased;
+      this.matrixWorld.elements[13] += worldOffset.y * explosionEased;
+      this.matrixWorld.elements[14] += worldOffset.z * explosionEased;
+    };
+    explosionParts.push({ node, offset });
   });
 }
 
 function applyExplosion(value) {
   explosion = normalizeFold(value);
   const eased = explosion * explosion * (3 - 2 * explosion);
-  explosionParts.forEach(({ node, base, offset, screenMaterial, isPanel }) => {
-    node.matrixAutoUpdate = true;
-    node.position.copy(base).addScaledVector(offset, eased);
-    node.updateMatrix();
-    if (isPanel) node.visible = eased < .02;
-    if (screenMaterial) {
-      node.visible = eased < .02;
-      if (!screenMaterial.userData.anatomyDefaults) {
-        screenMaterial.userData.anatomyDefaults = {
-          transparent: screenMaterial.transparent,
-          opacity: screenMaterial.opacity,
-          depthWrite: screenMaterial.depthWrite,
-          emissiveIntensity: screenMaterial.emissiveIntensity
-        };
-      }
-      const defaults = screenMaterial.userData.anatomyDefaults;
-      const faded = eased > .001;
-      const transparent = faded || defaults.transparent;
-      if (screenMaterial.transparent !== transparent) screenMaterial.needsUpdate = true;
-      screenMaterial.transparent = transparent;
-      screenMaterial.opacity = THREE.MathUtils.lerp(defaults.opacity, .02, eased);
-      screenMaterial.depthWrite = faded ? false : defaults.depthWrite;
-      screenMaterial.emissiveIntensity = THREE.MathUtils.lerp(defaults.emissiveIntensity, .04, eased);
-    }
-  });
+  explosionEased = eased;
   explodeSlider.value = String(explosion);
   anatomyLabel.value = explosion < .01 ? 'Assembled' : `${Math.round(explosion * 100)}% exploded`;
   explodeToggle.setAttribute('aria-pressed', String(explosionTarget > .5));
@@ -231,6 +211,7 @@ function selectPipelineStage(stage) {
 
 function setViewMode(mode) {
   viewMode = mode;
+  scene.background = mode === 'anatomy' ? new THREE.Color(0xe4e4e7) : null;
   lessonTabs.forEach((tab) => tab.setAttribute('aria-selected', String(tab.dataset.view === mode)));
   demoPanel.hidden = mode !== 'demo';
   anatomyPanel.hidden = mode !== 'anatomy';
@@ -240,6 +221,7 @@ function setViewMode(mode) {
     wallpaperRenderer?.setLayerCount(PASSES_LAYER_COUNT);
     explosionTarget = 0;
     applyExplosion(0);
+    setFold(selected.fold);
     applyView(selected);
   } else if (mode === 'anatomy') {
     wallpaperRenderer?.setLayerCount(PASSES_LAYER_COUNT);
@@ -247,7 +229,7 @@ function setViewMode(mode) {
     setFold(1);
     setRigState(states[1]);
     // 斜向观察装配轴，否则沿屏幕法线分层的零件会在正视图中互相遮挡。
-    Object.assign(orbit, { radius: 41, phi: 1.31, theta: Math.PI * 1.28 });
+    Object.assign(orbit, { radius: 48, phi: 1.31, theta: Math.PI * 1.22 });
     applyOrbit();
   } else {
     explosionTarget = 0;
@@ -474,7 +456,7 @@ canvas.addEventListener('wheel', revealFreeView, { passive: true });
 resetView.addEventListener('click', () => {
   transition = null;
   if (viewMode === 'anatomy') {
-    Object.assign(orbit, { radius: 41, phi: 1.31, theta: Math.PI * 1.28 });
+    Object.assign(orbit, { radius: 48, phi: 1.31, theta: Math.PI * 1.22 });
     applyOrbit();
   } else applyView(selected);
 });

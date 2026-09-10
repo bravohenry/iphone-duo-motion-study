@@ -1,6 +1,6 @@
 # iPhone Duo Motion Study - local interaction research rig
 
-Static HTML + local Three.js runtime + publicly delivered reference media. `foldable-v2.html` owns the full-viewport canvas and floating controls; `main.js` owns the interruptible state machine, responsive camera framing, and screen material binding; `wallpaper-renderer.js` owns the offscreen screen-pixel pipeline. Research explanations stay in README rather than the viewer.
+Static HTML + local Three.js runtime + publicly delivered reference media. `foldable-v2.html` owns the full-viewport canvas, segmented teaching navigation and contextual controls; `main.js` owns the product state machine, world-matrix exploded view and render-target lesson orchestration; `wallpaper-renderer.js` owns the inspectable offscreen screen-pixel pipeline. Research explanations stay in README rather than the viewer.
 
 <directory>
 assets/ - local runtime and original reference resources (model, EXR, pose references and wallpaper layers); screenshot-derived screen crops are excluded
@@ -13,9 +13,9 @@ evidence/ - target-bound runtime and source findings used to distinguish source 
 
 <config>
 README.md - provenance, run instructions, and interaction findings
-main.js - seven-state transition orchestration, responsive framing and dynamic-only screen binding; screens stay unlit until the wallpaper pipeline loads
-wallpaper-renderer.js - linear half-float wallpaper, UI composition, FramePass, two-pass blur and screen-local Wipe projection; visual revalidation in progress
-foldable-v2.html - current full-viewport ES-module entrypoint; teaching views, pose controls, GitHub link and replay/reset icons
+main.js - three-view teaching orchestration, seven product states, reversible world-matrix exterior-part explosion and live pipeline inspection
+wallpaper-renderer.js - linear half-float wallpaper, cumulative layer visibility, UI composition, FramePass, two-pass blur, debug targets and screen-local Wipe projection
+foldable-v2.html - current full-viewport ES-module entrypoint; Product Demo, Device Anatomy and WebGL Pipeline segments with contextual controls
 index.html - original research page retained as an earlier reference
 foldable.html - earlier viewer retained for comparison
 bundle.js - generated browser bundle of main.js and the local Three.js dependencies

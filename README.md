@@ -1,5 +1,7 @@
 # iPhone Duo Product Viewer — motion study
 
+[Live demo](https://iphone-duo-motion-study.vercel.app) · [GitHub repository](https://github.com/bravohenry/iphone-duo-motion-study)
+
 Run from this folder with:
 
 ```bash
@@ -10,6 +12,9 @@ Then open [http://localhost:4173/foldable-v2.html](http://localhost:4173/foldabl
 
 ## What is included
 
+- A three-segment teaching shell: Product Demo preserves the original interaction study, Device Anatomy exposes a reversible exploded view, and WebGL Pipeline displays each real render stage before the result is mapped to the folding device.
+- Device Anatomy separates the delivered exterior meshes in world space while keeping the display as the assembly reference. The source asset contains exterior shells, hinge, camera rings, controls and trim; it does not contain fabricated battery, logic-board or internal-frame geometry.
+- WebGL Pipeline reuses the production render targets rather than screenshots: Sky, Stars, Hills and Dunes progressively enable the five source layers; UI, Frame and Blur show their actual offscreen textures; Wipe returns the result to the live 3D screen material.
 - A full-window 3D canvas with a floating pose dock. The fold slider and replay icon appear only in Foldable; the top-right icon resets the view. Narrow windows automatically widen the camera framing to keep the model visible.
 - The browser-delivered `Slider` glTF animation: 0–2 seconds, 61 keyframes, controlled continuously by the range input.
 - The browser-delivered `Intro` glTF animation: 0–2 seconds, replayable on an exclusive mixer timeline so it cannot blend with the `Slider` tracks that target the same device nodes.

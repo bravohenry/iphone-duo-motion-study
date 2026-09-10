@@ -11,6 +11,13 @@
 - Seated, Standing, and Durability: each uses a dedicated orbit target instead of inheriting the landing camera; the baselines were captured from the live source viewer at the same desktop viewport.
 - DOM/runtime boundary: the `<img id="pose">` element and all `pose-visible` styles and code paths were removed.
 
+## Teaching views
+
+- Product Demo, Device Anatomy and WebGL Pipeline switch through one segmented control and reuse one model/renderer instance.
+- Device Anatomy was checked assembled, fully exploded and assembled again. Exterior parts separate through render-time world-matrix offsets, so the glTF skin does not cancel the teaching transform; returning to Product Demo restores the selected fold value and complete five-layer wallpaper.
+- WebGL stages Sky, Stars, Hills, Dunes, UI, Frame, Blur and Wipe were selected in the live browser. The first seven show their corresponding render targets; Wipe returns to the live folding mesh with the local blur/shadow projection.
+- Browser error/warning logs were empty after switching among all three views.
+
 ## Acceptance
 
 The requested no-image handoff condition is met: all seven named states render through the one canvas model. The retained static pose images have no runtime display path.

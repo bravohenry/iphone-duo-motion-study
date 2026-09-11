@@ -8,6 +8,7 @@
 - `SOURCE` The scene routes the fold control through a spring/magnet `Hinge` and routes screen changes through `FadeThroughBlack`; the bare `Slider` glTF clip is therefore an incomplete representation of the source viewer.
 - `SOURCE` The scene assigns `ADsFgCxkeKZYiww.exr` to material layer 4 with rotation `[1, 0.6, 0]`, and `SfFEyQuyjAgUwjH.exr` to layer 5 with rotation `[0, 2.09, 0]`; local hashes confirm these are the retained `apple-environment-alt.exr` and `apple-environment.exr` files respectively.
 - `SOURCE` Material chunks override the bare glTF after load. In particular, `iVzCHFKAaRqjQhl` restores the Apple Logo layer from transparent to visible, while the rear-camera stack receives separate transparency values and reflection layers.
+- `SOURCE` The same chunks replace the glTF AO references: `FoAbzXGuCEeVRQW` uses `chXcmJILZBdVbSF` (`aZqkEeTujOoBroI.avif`), while the finish carrier group uses `rmbtiCKMcdkeWlF` (`ENOOHgwiucFCbVu.avif`). Both images already exist in the delivered model package, so the local adapter reuses the decoded textures rather than adding new copies.
 
 ## Source locations
 

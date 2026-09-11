@@ -13488,7 +13488,7 @@
     { id: "wipe", label: "08 Wipe", layers: 5, texture: "blur", device: true, description: "The result is projected through the folding screen in local 3D space." }
   ];
 
-  // app/material-fidelity.js?v=3
+  // app/material-fidelity.js?v=4
   var MATERIAL_OVERRIDES = Object.freeze({
     // Logo 高光层：glTF 的基础 Alpha 为 0，Lotus 场景将它恢复为不透明。
     iVzCHFKAaRqjQhl: { opacity: 1, transparent: false, depthWrite: true },
@@ -13500,6 +13500,18 @@
     xCmJdqeHryYgJtk: { opacity: 0.341, transparent: true, depthWrite: false, environment: "finish" },
     uykWUEajxHqfrmh: { opacity: 0.461, transparent: true, depthWrite: false },
     OwqobJiNTlvAFyj: { opacity: 0.4, transparent: true, depthWrite: false }
+  });
+  var AO_SOURCE_MATERIALS = Object.freeze({
+    finishOcclusion: "jqlebwNqkTyrcyd",
+    innerCarrierOcclusion: "OYGBKvzrlgToWww"
+  });
+  var AO_MATERIAL_OVERRIDES = Object.freeze({
+    FoAbzXGuCEeVRQW: "innerCarrierOcclusion",
+    NtNSwEIIFmIbXaY: "finishOcclusion",
+    ZoizrWFccovSVQl: "finishOcclusion",
+    xHXZphlQnPqfbqz: "finishOcclusion",
+    lrXfpZcYrByzvym: "finishOcclusion",
+    OwqobJiNTlvAFyj: "finishOcclusion"
   });
   var FINISH_ENVIRONMENT_MATERIALS = /* @__PURE__ */ new Set([
     "QTguOGnxQOXIuCV",
@@ -13522,11 +13534,13 @@
   }
   function applySourceMaterialFidelity(root, environments = {}) {
     const visited = /* @__PURE__ */ new Set();
+    const materialsByName = /* @__PURE__ */ new Map();
     root.traverse((object) => {
       const materials = Array.isArray(object.material) ? object.material : [object.material];
       materials.filter(Boolean).forEach((material) => {
         if (visited.has(material)) return;
         visited.add(material);
+        materialsByName.set(material.name, material);
         const override = MATERIAL_OVERRIDES[material.name];
         if (override) {
           if (override.opacity !== void 0) material.opacity = override.opacity;
@@ -13540,6 +13554,15 @@
         if (environment === "finish") applyEnvironment(material, environments.finish, FINISH_ENVIRONMENT_ROTATION);
         material.needsUpdate = true;
       });
+    });
+    const aoSources = Object.fromEntries(Object.entries(AO_SOURCE_MATERIALS).map(([key, name]) => [key, materialsByName.get(name)?.aoMap]));
+    Object.entries(AO_MATERIAL_OVERRIDES).forEach(([name, source]) => {
+      const material = materialsByName.get(name);
+      const aoMap = aoSources[source];
+      if (!material || !aoMap) return;
+      material.aoMap = aoMap;
+      material.aoMapIntensity = 1;
+      material.needsUpdate = true;
     });
   }
 

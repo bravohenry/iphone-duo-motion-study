@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖已加载的 iPhone Duo glTF 根节点，以及官网场景交付的 Finish/Optics 两张 PMREM 环境贴图。
- * [OUTPUT]: 提供官网 LSD 材质层、透明度覆盖与局部环境旋转的 Three.js 近似还原接口。
+ * [INPUT]: 依赖已加载的 iPhone Duo glTF 根节点、其中已解码的 AO 贴图，以及官网场景交付的 Finish/Optics 两张 PMREM 环境贴图。
+ * [OUTPUT]: 提供官网 LSD 材质层、AO 重绑定、透明度覆盖与局部环境旋转的 Three.js 近似还原接口。
  * [POS]: app 的材质兼容层；弥合裸 glTF 与 Apple Lotus 场景运行时之间的差异，不让 main.js 硬编码材质细节。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -16,6 +16,21 @@ const MATERIAL_OVERRIDES = Object.freeze({
   xCmJdqeHryYgJtk: { opacity: .341, transparent: true, depthWrite: false, environment: 'finish' },
   uykWUEajxHqfrmh: { opacity: .461, transparent: true, depthWrite: false },
   OwqobJiNTlvAFyj: { opacity: .4, transparent: true, depthWrite: false },
+});
+
+// Lotus scene 会覆盖裸 glTF 的 AO 引用；复用模型中已解码的同源贴图，避免重复请求资源。
+const AO_SOURCE_MATERIALS = Object.freeze({
+  finishOcclusion: 'jqlebwNqkTyrcyd',
+  innerCarrierOcclusion: 'OYGBKvzrlgToWww',
+});
+
+const AO_MATERIAL_OVERRIDES = Object.freeze({
+  FoAbzXGuCEeVRQW: 'innerCarrierOcclusion',
+  NtNSwEIIFmIbXaY: 'finishOcclusion',
+  ZoizrWFccovSVQl: 'finishOcclusion',
+  xHXZphlQnPqfbqz: 'finishOcclusion',
+  lrXfpZcYrByzvym: 'finishOcclusion',
+  OwqobJiNTlvAFyj: 'finishOcclusion',
 });
 
 const FINISH_ENVIRONMENT_MATERIALS = new Set([
@@ -42,11 +57,13 @@ function applyEnvironment(material, texture, rotation) {
 
 export function applySourceMaterialFidelity(root, environments = {}) {
   const visited = new Set();
+  const materialsByName = new Map();
   root.traverse((object) => {
     const materials = Array.isArray(object.material) ? object.material : [object.material];
     materials.filter(Boolean).forEach((material) => {
       if (visited.has(material)) return;
       visited.add(material);
+      materialsByName.set(material.name, material);
 
       const override = MATERIAL_OVERRIDES[material.name];
       if (override) {
@@ -62,5 +79,15 @@ export function applySourceMaterialFidelity(root, environments = {}) {
       if (environment === 'finish') applyEnvironment(material, environments.finish, FINISH_ENVIRONMENT_ROTATION);
       material.needsUpdate = true;
     });
+  });
+
+  const aoSources = Object.fromEntries(Object.entries(AO_SOURCE_MATERIALS).map(([key, name]) => [key, materialsByName.get(name)?.aoMap]));
+  Object.entries(AO_MATERIAL_OVERRIDES).forEach(([name, source]) => {
+    const material = materialsByName.get(name);
+    const aoMap = aoSources[source];
+    if (!material || !aoMap) return;
+    material.aoMap = aoMap;
+    material.aoMapIntensity = 1;
+    material.needsUpdate = true;
   });
 }

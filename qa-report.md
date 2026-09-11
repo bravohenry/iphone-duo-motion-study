@@ -103,6 +103,7 @@ The requested no-image handoff condition is met: all seven named states render t
 
 - Compared the retained EXRs byte-for-byte with the current public scene assets: `apple-environment.exr` matches layer-5 `SfFEyQuyjAgUwjH.exr`, and `apple-environment-alt.exr` matches layer-4 `ADsFgCxkeKZYiww.exr`. Their source rotations are now applied to Finish and Optics materials instead of treating one EXR as a global unrotated light.
 - Restored the source scene's post-glTF material semantics. The Apple Logo overlay is visible again, and rear-camera glass keeps its layered transparency while using the colored Optics reflection map.
+- Rebound the inner-carrier and finish-group AO maps to the exact AVIF assets named by the source LSD. The images were already delivered inside the glTF package; the defect was the missing scene-level reassignment, not a missing download.
 - Reduced direct-light intensity from 8.9 aggregate units to 1.78, leaving the source EXR reflections to shape polished metal. Live Foldable and Durability checks now keep the inner screen surround near black while preserving the exterior silver frame.
 - Rotated the live model to its rear in the in-app browser. Both camera lenses retained dark internal elements and colored highlights, the Apple Logo was visible against the white back, and the dynamic screen remained attached to the model.
 - Re-exported the adjusted Foldable view as a PNG. The result is tightly cropped to 944 × 1465, preserves all 256 Alpha levels, and both opposite corner pixels remain fully transparent.

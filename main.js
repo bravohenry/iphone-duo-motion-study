@@ -7,7 +7,7 @@
 import * as THREE from './assets/three.module.min.js?v=165';
 import { GLTFLoader } from './assets/GLTFLoader.js?v=165';
 import { PIPELINE_STAGES, PASSES_LAYER_COUNT } from './app/config.js?v=1';
-import { applySourceMaterialFidelity } from './app/material-fidelity.js?v=3';
+import { applySourceMaterialFidelity } from './app/material-fidelity.js?v=4';
 import { createMockupController } from './app/mockup-controller.js?v=1';
 import { createMotionController } from './app/motion-controller.js?v=3';
 import { downloadTransparentPng } from './app/png-exporter.js?v=3';

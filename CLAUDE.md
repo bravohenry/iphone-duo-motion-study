@@ -14,7 +14,7 @@ evidence/ - target-bound runtime and source findings used to distinguish source 
 <config>
 README.md - provenance, run instructions, and interaction findings
 main.js - three-view orchestration, local image import/crop controls, seven product states, state-pair motion profiles, manual Slider sampling, optional live-bounds camera centering, free mockup camera and pipeline inspection
-wallpaper-renderer.js - linear half-float wallpaper, user-image canvas composition, FramePass, two-pass blur, debug targets and screen-local Wipe projection
+wallpaper-renderer.js - all-stage RGBA16F screen pipeline, user-image canvas composition, FramePass, two-pass blur, final-output dithering, debug targets and screen-local Wipe projection
 foldable-v2.html - current full-viewport ES-module entrypoint; Mockup, Product Demo and WebGL Pipeline segments with contextual controls
 index.html - original research page retained as an earlier reference
 foldable.html - earlier viewer retained for comparison

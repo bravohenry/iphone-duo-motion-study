@@ -16781,7 +16781,7 @@
     }
   }
 
-  // wallpaper-renderer.js?v=23
+  // wallpaper-renderer.js?v=24
   var ASSET_ROOT = "./assets/wallpaper/";
   var SHADER_ROOT = "./shaders/";
   var TARGET_SIZE = [2670, 1878];
@@ -16956,6 +16956,7 @@
   }
   function createTarget(width, height, mipmaps = false) {
     const target = new bi(width, height, {
+      type: Ut,
       depthBuffer: !mipmaps,
       generateMipmaps: mipmaps,
       minFilter: mipmaps ? wt : Mt,
@@ -16984,7 +16985,6 @@
     const camera2 = new Qs(50, 1, 10, 3e3);
     camera2.matrixAutoUpdate = false;
     const wallpaperTarget = createTarget(...TARGET_SIZE);
-    wallpaperTarget.texture.type = Ut;
     wallpaperTarget.samples = 4;
     const screenScene = new nc();
     const screenCamera = new Ea(-0.5, 0.5, 0.5, -0.5, 0, 1);
@@ -17498,6 +17498,7 @@ ${wipeFragmentVars}`).replace("#include <emissivemap_fragment>", wipeFragment);
       material.metalness = 0;
       material.roughness = mode === "inner" ? 0.33 : 0.05;
       material.toneMapped = false;
+      material.dithering = true;
       dynamicWallpaper?.installScreen(node, mode);
       material.needsUpdate = true;
     });

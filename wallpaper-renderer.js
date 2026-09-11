@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 Three.js、KTX2/EXR/glTF 加载器、Apple 公开交付的五层壁纸资源与从目标 bundle 提取的 GLSL。
- * [OUTPUT]: 提供 createDeviceWallpaperRenderer、内外屏动态/自定义图片纹理、逐阶段调试纹理与可控壁纸层数。
- * [POS]: iphone-duo-motion-study 的屏幕渲染子系统；处理壁纸、用户图片裁切、FramePass、两遍 Wipe blur、教学阶段输出与设备局部投影。
+ * [OUTPUT]: 提供 createDeviceWallpaperRenderer、内外屏动态/自定义图片纹理、全链路半浮点中间目标、逐阶段调试纹理与可控壁纸层数。
+ * [POS]: iphone-duo-motion-study 的屏幕渲染子系统；以 RGBA16F 处理壁纸、用户图片裁切、FramePass、两遍 Wipe blur、教学阶段输出与设备局部投影，避免暗部重复量化。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import * as THREE from './assets/three.module.min.js?v=165';
@@ -172,6 +172,7 @@ function flipExrRows(texture) {
 
 function createTarget(width, height, mipmaps = false) {
   const target = new THREE.WebGLRenderTarget(width, height, {
+    type: THREE.HalfFloatType,
     depthBuffer: !mipmaps,
     generateMipmaps: mipmaps,
     minFilter: mipmaps ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter,
@@ -193,7 +194,6 @@ export async function createDeviceWallpaperRenderer(renderer) {
   const camera = new THREE.PerspectiveCamera(50, 1, 10, 3000);
   camera.matrixAutoUpdate = false;
   const wallpaperTarget = createTarget(...TARGET_SIZE);
-  wallpaperTarget.texture.type = THREE.HalfFloatType;
   wallpaperTarget.samples = 4;
   const screenScene = new THREE.Scene();
   const screenCamera = new THREE.OrthographicCamera(-0.5, 0.5, 0.5, -0.5, 0, 1);

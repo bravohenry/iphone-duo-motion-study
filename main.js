@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 three.module、GLTFLoader、OrbitControls、wallpaper-renderer 与 apple-product-viewer 的 Slider clip、EXR 和设备模型。
- * [OUTPUT]: 驱动自定义图片 mockup、产品演示、手动折叠/可选几何中心跟随和逐阶段 WebGL 教学，并复用同一设备与屏幕管线。
+ * [OUTPUT]: 驱动自定义图片 mockup、产品演示、手动折叠/可选几何中心跟随、最终屏幕抖动和逐阶段 WebGL 教学，并复用同一设备与屏幕管线。
  * [POS]: iphone-duo-motion-study 的交互编排层；管理图片导入/裁切、三种视图、姿态/自由视角、整机中心跟随和管线预览。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -8,7 +8,7 @@ import * as THREE from './assets/three.module.min.js?v=165';
 import { GLTFLoader } from './assets/GLTFLoader.js?v=165';
 import { OrbitControls } from './assets/OrbitControls.js?v=165';
 import { EXRLoader } from './assets/EXRLoader.js?v=165';
-import { createDeviceWallpaperRenderer } from './wallpaper-renderer.js?v=23';
+import { createDeviceWallpaperRenderer } from './wallpaper-renderer.js?v=24';
 
 const CLIP_SECONDS = 2;
 const PASSES_LAYER_COUNT = 5;
@@ -200,6 +200,7 @@ function installDynamicScreens(root, dynamicWallpaper) {
     material.metalness = 0;
     material.roughness = mode === 'inner' ? .33 : .05;
     material.toneMapped = false;
+    material.dithering = true;
     dynamicWallpaper?.installScreen(node, mode);
     material.needsUpdate = true;
   });

@@ -64,4 +64,10 @@ The requested no-image handoff condition is met: all seven named states render t
 - Clamped the second remap before bicubic mip lookup. This prevents out-of-range LOD reads from returning black on the current GPU and preserves visible blurred content across the left panel.
 - Checked 33%, 78%, 90%, and 100% fold states in the live in-app browser. The current shader compile/error log is empty.
 
+## Dark-gradient banding
+
+- Root cause: only the wallpaper target was half-float; UI, Frame, both Blur passes and final screen targets defaulted to RGBA8. Repeated dark-gradient writes made the outer-screen Wipe shading visibly quantized.
+- A second amplifier was an unbounded outer-screen blur remap: at the default fold it could request nearly LOD 10 despite the shader's declared `maxBlur` of 8, pulling coarse colored mip averages into dark UI regions.
+- All screen intermediates now allocate as half-float render targets, blur LOD is capped at 8, and the final inner/outer MeshPhysical materials enable output dithering. This preserves precision through blur, prevents extreme mip color bleed and decorrelates the remaining 8-bit display quantization.
+
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

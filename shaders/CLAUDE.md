@@ -15,7 +15,7 @@ screen-ui.vert.glsl: 离屏锁屏 UI 合成的全屏平面顶点着色器。
 screen-ui.frag.glsl: 以官网 coverage 公式合成动态壁纸与锁屏 UI plate。
 screen-frame.frag.glsl: 原始 FramePass 的 0.9 framing 与圆角黑底；在模糊前扩展采样边界。
 wipe-blur.vert.glsl: 双通道 Wipe 模糊的全屏平面顶点着色器。
-wipe-blur.frag.glsl: 原始 bicubic mip LOD 模糊与遮光，两遍处理 FramePass 的输出。
+wipe-blur.frag.glsl: 有界 bicubic mip LOD 模糊与遮光，两遍处理 FramePass 输出并阻止外屏过量 LOD 色带。
 wipe-surface-vertex-vars.glsl: 注入 MeshPhysicalMaterial 的局部相机与投影基声明。
 wipe-surface.vert.glsl: 从蒙皮后的设备屏幕顶点计算 Wipe 局部平面。
 wipe-surface-fragment-vars.glsl: 平面求交、视角钳制和相机孔径函数。

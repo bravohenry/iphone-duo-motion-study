@@ -21,6 +21,7 @@ Then open [http://localhost:4173/foldable-v2.html](http://localhost:4173/foldabl
 - The browser-delivered `Slider` glTF animation: 0–2 seconds, 61 keyframes, controlled continuously by the range input.
 - The seven browser-delivered product-viewer pose images are retained as research references only; the running viewer never mounts or crossfades to them.
 - The original product-viewer EXR environment and dynamic screens rendered from the original wallpaper layers and UI resources. The inner screen uses a two-channel bicubic mip blur driven by hinge progress; the screen material applies device-local Wipe projection and a hinge-centered radial shadow. Screenshot-derived screen crops and their fallback path have been removed.
+- Screen intermediates remain RGBA16F from wallpaper/UI composition through Frame and both Blur passes. Blur LOD is clamped to its declared eight-level ceiling, and final display materials enable subtle output dithering. Together these prevent over-blurred color bleed and repeated 8-bit quantization from turning dark gradients into visible contour or zebra bands.
 - An interruptible seven-state machine: each named state has a target fold value, camera view, and transition. A new choice retargets from the current in-flight value instead of waiting for a previous transition to finish; it never replaces the model with a pose image.
 
 ## Research observations

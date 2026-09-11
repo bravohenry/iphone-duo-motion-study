@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖官网 Wipe 管线的纹理、局部坐标与 uniform。
- * [OUTPUT]: 输出保留原始 LOD、两遍模糊与边缘遮光的帧。
- * [POS]: shaders 的 blur 源码重放；仅做命名隔离，不添加视觉补偿。
+ * [OUTPUT]: 输出限定在合法 mip 范围内的两遍模糊与边缘遮光帧。
+ * [POS]: shaders 的 blur 重放与数值稳定层；保留源算法，并阻止外屏 blur remap 超出 maxBlur 形成色带。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 
@@ -94,7 +94,7 @@ float remap(float minValue, float maxValue, float value) {
 
 void main() {
   float distanceToWipe = distance(vUv.x, wipePosition);
-  float blurArea = remap(0.0, 0.75, clamp(remap(blurBounds.x, blurBounds.y, distanceToWipe) * wipeAmount * 2.5, 0.0, 1.0));
+  float blurArea = clamp(remap(0.0, 0.75, clamp(remap(blurBounds.x, blurBounds.y, distanceToWipe) * wipeAmount * 2.5, 0.0, 1.0)), 0.0, 1.0);
   vec3 shade = vec3(smoothstep(1.3, 0.9, blurArea) * smoothstep(1.0, 0.9, distance(vUv.y, 0.5) * 2.0));
   fragColor = textureBicubic(map, vUv, blurArea * maxBlur) * vec4(shade, 1.0);
 }

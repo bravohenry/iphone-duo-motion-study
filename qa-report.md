@@ -47,6 +47,8 @@ The requested no-image handoff condition is met: all seven named states render t
 
 - Removed the one-shot `Intro` playback path and its play button. The delivered `Slider` clip is now sampled only by the manual range control and pose transitions, eliminating competing animation timelines.
 - Removed Device Anatomy and its exploded-mesh render hooks. The current UI exposes only Mockup, Product Demo and WebGL Pipeline.
+- Auto center is opt-in. While Foldable is scrubbed, it refreshes each SkinnedMesh's deformed bounds, derives the current whole-device world-space center, and moves the camera and OrbitControls target without changing the user's radius or viewing angles.
+- Live browser checks at 0%, 50% and 100% kept the current device silhouette centered; the 0% check specifically guards against accidentally reusing the fully-open static geometry bounds.
 
 ## Wipe projection and blur — current UI check
 

@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 three.module、GLTFLoader、OrbitControls、wallpaper-renderer 与 apple-product-viewer 的 Slider clip、EXR 和设备模型。
- * [OUTPUT]: 驱动自定义图片 mockup、产品演示、手动折叠控制和逐阶段 WebGL 教学，并复用同一设备与屏幕管线。
- * [POS]: iphone-duo-motion-study 的交互编排层；管理图片导入/裁切、三种视图、姿态/自由视角和管线预览。
+ * [OUTPUT]: 驱动自定义图片 mockup、产品演示、手动折叠/可选几何中心跟随和逐阶段 WebGL 教学，并复用同一设备与屏幕管线。
+ * [POS]: iphone-duo-motion-study 的交互编排层；管理图片导入/裁切、三种视图、姿态/自由视角、整机中心跟随和管线预览。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import * as THREE from './assets/three.module.min.js?v=165';
@@ -15,6 +15,7 @@ const PASSES_LAYER_COUNT = 5;
 const canvas = document.querySelector('#webgl');
 const slider = document.querySelector('#fold');
 const foldValue = document.querySelector('#fold-value');
+const autoCenterButton = document.querySelector('#auto-center');
 const resetView = document.querySelector('#reset-view');
 const foldControls = document.querySelector('#fold-controls');
 const status = document.querySelector('#status');
@@ -68,11 +69,14 @@ let accentRig;
 let productRoot;
 let wallpaperRenderer;
 let viewMode = 'mockup';
+let autoCenter = false;
 let mockupTarget = 'both';
 const mockupImages = { inner: null, outer: null };
 const mockupNames = { inner: '', outer: '' };
 let selectedPipelineStage = pipelineStages[0];
 const orbit = new THREE.Spherical();
+const productBounds = new THREE.Box3();
+const viewCenter = new THREE.Vector3();
 let orbitControls;
 
 states.forEach((state) => {
@@ -218,12 +222,28 @@ function applyView(state) {
   applyOrbit();
 }
 
+function centerForCurrentView() {
+  const shouldFollow = autoCenter && selected.interactive && (viewMode === 'mockup' || viewMode === 'demo') && productRoot;
+  if (!shouldFollow) return viewCenter.copy(frame.center);
+  productRoot.updateWorldMatrix(true, true);
+  // 机身由骨骼驱动；静态 geometry bounds 会把闭合状态误判成展开宽度。
+  productRoot.traverse((node) => { if (node.isSkinnedMesh) node.computeBoundingBox(); });
+  productBounds.setFromObject(productRoot);
+  return productBounds.isEmpty() ? viewCenter.copy(frame.center) : productBounds.getCenter(viewCenter);
+}
+
+function syncOrbitFromCamera() {
+  if (!orbitControls) return;
+  orbit.setFromVector3(camera.position.clone().sub(orbitControls.target));
+}
+
 function applyOrbit() {
   if (!frame) return;
-  camera.position.copy(frame.center).add(new THREE.Vector3().setFromSpherical(orbit));
-  camera.lookAt(frame.center);
+  const center = centerForCurrentView();
+  camera.position.copy(center).add(new THREE.Vector3().setFromSpherical(orbit));
+  camera.lookAt(center);
   if (orbitControls) {
-    orbitControls.target.copy(frame.center);
+    orbitControls.target.copy(center);
     orbitControls.update();
   }
 }
@@ -335,6 +355,17 @@ slider.addEventListener('input', (event) => {
   if (!selected.interactive) return;
   transition = null;
   setFold(event.target.value);
+  if (autoCenter) {
+    syncOrbitFromCamera();
+    applyOrbit();
+  }
+});
+
+autoCenterButton.addEventListener('click', () => {
+  syncOrbitFromCamera();
+  autoCenter = !autoCenter;
+  autoCenterButton.setAttribute('aria-pressed', String(autoCenter));
+  if (autoCenter) applyOrbit();
 });
 
 function revealFreeView() {

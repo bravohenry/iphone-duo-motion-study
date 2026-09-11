@@ -1,6 +1,6 @@
 <!--
   [INPUT]: 依赖 main.js 的交互状态机、wallpaper-renderer.js 的屏幕像素管线，以及原始设备/壁纸资源。
-  [OUTPUT]: 提供可上传图片的 Mockup 工作区、Product Demo、WebGL Pipeline、GitHub 仓库入口及各自控件。
+  [OUTPUT]: 提供可上传图片的 Mockup 工作区、Product Demo、WebGL Pipeline、折叠自动居中选项、GitHub 仓库入口及各自控件。
   [POS]: 当前研究交付的主入口；共享一个 WebGL 画布，以 segment control 切换屏幕 mockup、产品演示和渲染管线。
   [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
@@ -22,9 +22,11 @@
       #webgl:active { cursor:grabbing; }
       .panel { position:absolute; z-index:2; left:50%; bottom:max(24px,env(safe-area-inset-bottom)); transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; gap:12px; width:max-content; max-width:calc(100% - 32px); pointer-events:none; }
       .glass { background:var(--glass); border:1px solid #00000008; box-shadow:0 3px 16px #00000006; backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); }
-      #fold-controls { display:flex; align-items:center; gap:12px; width:min(300px,100%); padding:4px 8px 4px 16px; border-radius:999px; pointer-events:auto; }
+      #fold-controls { display:flex; align-items:center; gap:12px; width:min(390px,100%); padding:4px 8px 4px 16px; border-radius:999px; pointer-events:auto; }
       #fold { flex:1; min-width:0; height:32px; margin:0; accent-color:var(--blue); cursor:ew-resize; }
       #fold-value { min-width:34px; color:var(--muted); font-size:12px; font-variant-numeric:tabular-nums; text-align:right; }
+      #auto-center { flex:none; min-height:32px; border:0; border-radius:999px; padding:0 11px; color:var(--muted); background:#fff8; cursor:pointer; white-space:nowrap; }
+      #auto-center[aria-pressed="true"] { color:#fff; background:var(--ink); }
       .icon-button { display:grid; place-items:center; flex:none; width:40px; height:40px; padding:10px; border:0; border-radius:50%; background:transparent; color:var(--ink); cursor:pointer; }
       .icon-button svg { width:20px; height:20px; }
       #reset-view { position:absolute; z-index:2; right:max(24px,env(safe-area-inset-right)); top:max(24px,env(safe-area-inset-top)); width:44px; height:44px; }
@@ -86,6 +88,7 @@
           <div id="fold-controls" class="glass">
             <input id="fold" type="range" min="0" max="1" step="0.001" value="0.333" aria-label="Fold amount" />
             <output id="fold-value" for="fold">33%</output>
+            <button id="auto-center" type="button" aria-pressed="false">Auto center</button>
           </div>
           <nav id="controls" class="glass" aria-label="Product poses"></nav>
         </div>

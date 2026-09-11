@@ -17324,6 +17324,7 @@ ${wipeFragmentVars}`).replace("#include <emissivemap_fragment>", wipeFragment);
   var canvas = document.querySelector("#webgl");
   var slider = document.querySelector("#fold");
   var foldValue = document.querySelector("#fold-value");
+  var autoCenterButton = document.querySelector("#auto-center");
   var resetView = document.querySelector("#reset-view");
   var foldControls = document.querySelector("#fold-controls");
   var status = document.querySelector("#status");
@@ -17374,11 +17375,14 @@ ${wipeFragmentVars}`).replace("#include <emissivemap_fragment>", wipeFragment);
   var productRoot;
   var wallpaperRenderer;
   var viewMode = "mockup";
+  var autoCenter = false;
   var mockupTarget = "both";
   var mockupImages = { inner: null, outer: null };
   var mockupNames = { inner: "", outer: "" };
   var selectedPipelineStage = pipelineStages[0];
   var orbit = new gm();
+  var productBounds = new Ii();
+  var viewCenter = new Ci();
   var orbitControls;
   states.forEach((state) => {
     const button = document.createElement("button");
@@ -17513,12 +17517,27 @@ ${wipeFragmentVars}`).replace("#include <emissivemap_fragment>", wipeFragment);
     setRigState(state);
     applyOrbit();
   }
+  function centerForCurrentView() {
+    const shouldFollow = autoCenter && selected.interactive && (viewMode === "mockup" || viewMode === "demo") && productRoot;
+    if (!shouldFollow) return viewCenter.copy(frame.center);
+    productRoot.updateWorldMatrix(true, true);
+    productRoot.traverse((node) => {
+      if (node.isSkinnedMesh) node.computeBoundingBox();
+    });
+    productBounds.setFromObject(productRoot);
+    return productBounds.isEmpty() ? viewCenter.copy(frame.center) : productBounds.getCenter(viewCenter);
+  }
+  function syncOrbitFromCamera() {
+    if (!orbitControls) return;
+    orbit.setFromVector3(camera.position.clone().sub(orbitControls.target));
+  }
   function applyOrbit() {
     if (!frame) return;
-    camera.position.copy(frame.center).add(new Ci().setFromSpherical(orbit));
-    camera.lookAt(frame.center);
+    const center = centerForCurrentView();
+    camera.position.copy(center).add(new Ci().setFromSpherical(orbit));
+    camera.lookAt(center);
     if (orbitControls) {
-      orbitControls.target.copy(frame.center);
+      orbitControls.target.copy(center);
       orbitControls.update();
     }
   }
@@ -17620,6 +17639,16 @@ ${wipeFragmentVars}`).replace("#include <emissivemap_fragment>", wipeFragment);
     if (!selected.interactive) return;
     transition = null;
     setFold(event.target.value);
+    if (autoCenter) {
+      syncOrbitFromCamera();
+      applyOrbit();
+    }
+  });
+  autoCenterButton.addEventListener("click", () => {
+    syncOrbitFromCamera();
+    autoCenter = !autoCenter;
+    autoCenterButton.setAttribute("aria-pressed", String(autoCenter));
+    if (autoCenter) applyOrbit();
   });
   function revealFreeView() {
     transition = null;

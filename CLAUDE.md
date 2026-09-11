@@ -1,9 +1,9 @@
 # iPhone Duo Motion Study - local interaction research rig
 
-Static HTML + modular local Three.js runtime + publicly delivered reference media. `foldable-v2.html` owns the full-viewport canvas and contextual controls; `main.js` is the composition root; `app/` separates motion, render quality, screen materials, mockup input and shared configuration; `wallpaper-renderer.js` owns the inspectable offscreen screen-pixel pipeline and custom-image composition. Research explanations stay in README rather than the viewer.
+Static HTML + modular local Three.js runtime + publicly delivered reference media. `foldable-v2.html` owns the full-viewport canvas and contextual controls; `main.js` is the composition root; `app/` separates motion, render quality, source-material fidelity, screen materials, mockup input and shared configuration; `wallpaper-renderer.js` owns the inspectable offscreen screen-pixel pipeline and custom-image composition. Research explanations stay in README rather than the viewer.
 
 <directory>
-app/ - browser application modules for configuration, render runtime, device motion, screen materials and mockup input
+app/ - browser application modules for configuration, render runtime, source-material fidelity, device motion, screen materials and mockup input
 assets/ - local runtime and original reference resources (model, EXR, pose references and wallpaper layers); screenshot-derived screen crops are excluded
 shaders/ - source-derived wallpaper, bicubic blur and device-local Wipe projection passes
 math/ - wallpaper motion matrix helpers

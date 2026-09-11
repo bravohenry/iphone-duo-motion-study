@@ -13488,6 +13488,61 @@
     { id: "wipe", label: "08 Wipe", layers: 5, texture: "blur", device: true, description: "The result is projected through the folding screen in local 3D space." }
   ];
 
+  // app/material-fidelity.js?v=3
+  var MATERIAL_OVERRIDES = Object.freeze({
+    // Logo 高光层：glTF 的基础 Alpha 为 0，Lotus 场景将它恢复为不透明。
+    iVzCHFKAaRqjQhl: { opacity: 1, transparent: false, depthWrite: true },
+    // Lotus 的动态环境/遮蔽让内屏承载框保持近黑；裸 glTF 的 0.1 线性色在补光下会错误地抬成中灰。
+    FoAbzXGuCEeVRQW: { color: [8e-3, 8e-3, 8e-3], roughness: 0.5 },
+    // Lotus 将材质基础 Alpha 与 Transparency chunk 分开计算；Three.js 只有一层 opacity，保留半透明玻璃才能让内部镜组在透明导出中仍然可见。
+    FVyIOhmektXDyZR: { opacity: 0.28, transparent: true, depthWrite: false, environment: "optics" },
+    hkSmvYqlDNAQojv: { opacity: 0.453, transparent: true, depthWrite: false, environment: "finish" },
+    xCmJdqeHryYgJtk: { opacity: 0.341, transparent: true, depthWrite: false, environment: "finish" },
+    uykWUEajxHqfrmh: { opacity: 0.461, transparent: true, depthWrite: false },
+    OwqobJiNTlvAFyj: { opacity: 0.4, transparent: true, depthWrite: false }
+  });
+  var FINISH_ENVIRONMENT_MATERIALS = /* @__PURE__ */ new Set([
+    "QTguOGnxQOXIuCV",
+    "jqsnBZpRGBJNKPm",
+    "npGznGDsLOmhtPH",
+    "xCmJdqeHryYgJtk",
+    "hkSmvYqlDNAQojv",
+    "qJbGiREHXwRMmQc",
+    "dLDrceZOOgIrzrK",
+    "pkUBCyCvYJYVzTr",
+    "screenTextureOuterDisplay_usd_shd_lts"
+  ]);
+  var FINISH_ENVIRONMENT_ROTATION = Object.freeze([0, 2.09, 0]);
+  var OPTICS_ENVIRONMENT_ROTATION = Object.freeze([1, 0.6, 0]);
+  function applyEnvironment(material, texture, rotation) {
+    if (!texture || !material.isMeshStandardMaterial) return;
+    material.envMap = texture;
+    material.envMapIntensity = 1;
+    material.envMapRotation?.set(...rotation);
+  }
+  function applySourceMaterialFidelity(root, environments = {}) {
+    const visited = /* @__PURE__ */ new Set();
+    root.traverse((object) => {
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      materials.filter(Boolean).forEach((material) => {
+        if (visited.has(material)) return;
+        visited.add(material);
+        const override = MATERIAL_OVERRIDES[material.name];
+        if (override) {
+          if (override.opacity !== void 0) material.opacity = override.opacity;
+          if (override.transparent !== void 0) material.transparent = override.transparent;
+          if (override.depthWrite !== void 0) material.depthWrite = override.depthWrite;
+          if (override.color) material.color.setRGB(...override.color);
+          if (override.roughness !== void 0) material.roughness = override.roughness;
+        }
+        const environment = override?.environment || (FINISH_ENVIRONMENT_MATERIALS.has(material.name) ? "finish" : null);
+        if (environment === "optics") applyEnvironment(material, environments.optics, OPTICS_ENVIRONMENT_ROTATION);
+        if (environment === "finish") applyEnvironment(material, environments.finish, FINISH_ENVIRONMENT_ROTATION);
+        material.needsUpdate = true;
+      });
+    });
+  }
+
   // app/mockup-controller.js?v=1
   function createMockupController({ status: status2, getViewMode }) {
     const fileInput = document.querySelector("#mockup-file");
@@ -16614,11 +16669,11 @@
     const scene = new nc();
     const camera = new Qs(50, 1, 0.01, 100);
     camera.zoom = 1.5;
-    scene.add(new ep(16777215, 9279136, 2.2));
-    const keyLight = new mp(16777215, 4.5);
+    scene.add(new ep(16777215, 1118742, 0.45));
+    const keyLight = new mp(16777215, 1.15);
     keyLight.position.set(5, 6, 8);
     scene.add(keyLight);
-    const fillLight = new mp(14543103, 2.2);
+    const fillLight = new mp(14543103, 0.18);
     fillLight.position.set(-5, 2, 4);
     scene.add(fillLight);
     const pipelineScene = new nc();
@@ -16653,18 +16708,24 @@
     function render(usePipelineScene) {
       renderer.render(usePipelineScene ? pipelineScene : scene, usePipelineScene ? pipelineCamera : camera);
     }
-    function loadEnvironment(url) {
+    function loadPmrem(url) {
       return new Promise((resolve, reject) => {
         new EXRLoader().load(url, (texture) => {
           const pmrem = new Ba(renderer);
-          scene.environment = pmrem.fromEquirectangular(texture).texture;
+          const environment = pmrem.fromEquirectangular(texture).texture;
           texture.dispose();
           pmrem.dispose();
-          resolve(scene.environment);
+          resolve(environment);
         }, void 0, reject);
       });
     }
-    return { renderer, scene, camera, pipelineMaterial, resize: resize2, setPipelineTexture, render, loadEnvironment };
+    async function loadMaterialEnvironments({ finishUrl, opticsUrl }) {
+      const [finish, optics] = await Promise.all([loadPmrem(finishUrl), loadPmrem(opticsUrl)]);
+      scene.environment = finish;
+      scene.environmentRotation.set(0, 2.09, 0);
+      return { finish, optics };
+    }
+    return { renderer, scene, camera, pipelineMaterial, resize: resize2, setPipelineTexture, render, loadMaterialEnvironments };
   }
 
   // app/screen-materials.js?v=1
@@ -17996,8 +18057,12 @@ ${wipeFragmentVars}`).replace("#include <emissivemap_fragment>", wipeFragment);
       downloadPngButton.removeAttribute("aria-busy");
     }
   });
-  runtime.loadEnvironment("./assets/apple-product-viewer/apple-environment.exr").catch((error) => {
+  var environmentsPromise = runtime.loadMaterialEnvironments({
+    finishUrl: "./assets/apple-product-viewer/apple-environment.exr",
+    opticsUrl: "./assets/apple-product-viewer/apple-environment-alt.exr"
+  }).catch((error) => {
     console.error("Environment map failed to load; direct lights remain active.", error);
+    return {};
   });
   new GLTFLoader().load("./assets/apple-product-viewer/product-viewer.gltf", (gltf) => {
     productRoot = gltf.scene;
@@ -18008,6 +18073,8 @@ ${wipeFragmentVars}`).replace("#include <emissivemap_fragment>", wipeFragment);
     poseRig.rotation.order = "ZYX";
     accentRig.rotation.order = "YXZ";
     installDynamicScreens(productRoot, wallpaperRenderer);
+    applySourceMaterialFidelity(productRoot);
+    environmentsPromise.then((environments) => applySourceMaterialFidelity(productRoot, environments));
     accentRig.add(productRoot);
     poseRig.add(accentRig);
     turntable.add(poseRig);

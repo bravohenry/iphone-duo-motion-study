@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 Three.js、EXRLoader、render-quality 像素预算、全屏 canvas 与 apple-product-viewer 环境贴图。
- * [OUTPUT]: 提供主场景/教学场景、相机、渲染器、自适应超采样 resize、环境加载和逐帧绘制接口。
- * [POS]: app 的 WebGL 运行时边界；集中拥有画布质量预算，避免场景编排直接操作底层 renderer。
+ * [OUTPUT]: 提供主场景/教学场景、相机、渲染器、自适应超采样 resize、双层 PMREM 环境加载和逐帧绘制接口。
+ * [POS]: app 的 WebGL 运行时边界；集中拥有画布质量与源场景光照基线，避免场景编排直接操作底层 renderer。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import * as THREE from '../assets/three.module.min.js?v=165';
@@ -26,11 +26,12 @@ export function createRenderRuntime(canvas) {
   const camera = new THREE.PerspectiveCamera(50, 1, .01, 100);
   camera.zoom = 1.5;
 
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x8d96a0, 2.2));
-  const keyLight = new THREE.DirectionalLight(0xffffff, 4.5);
+  // 官网主体由分层 IBL 塑形；这里只保留克制的漫反射补偿，供 Three.js 的非金属材质使用。
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x111216, .45));
+  const keyLight = new THREE.DirectionalLight(0xffffff, 1.15);
   keyLight.position.set(5, 6, 8);
   scene.add(keyLight);
-  const fillLight = new THREE.DirectionalLight(0xdde8ff, 2.2);
+  const fillLight = new THREE.DirectionalLight(0xdde8ff, .18);
   fillLight.position.set(-5, 2, 4);
   scene.add(fillLight);
 
@@ -71,17 +72,24 @@ export function createRenderRuntime(canvas) {
     renderer.render(usePipelineScene ? pipelineScene : scene, usePipelineScene ? pipelineCamera : camera);
   }
 
-  function loadEnvironment(url) {
+  function loadPmrem(url) {
     return new Promise((resolve, reject) => {
       new EXRLoader().load(url, (texture) => {
         const pmrem = new THREE.PMREMGenerator(renderer);
-        scene.environment = pmrem.fromEquirectangular(texture).texture;
+        const environment = pmrem.fromEquirectangular(texture).texture;
         texture.dispose();
         pmrem.dispose();
-        resolve(scene.environment);
+        resolve(environment);
       }, undefined, reject);
     });
   }
 
-  return { renderer, scene, camera, pipelineMaterial, resize, setPipelineTexture, render, loadEnvironment };
+  async function loadMaterialEnvironments({ finishUrl, opticsUrl }) {
+    const [finish, optics] = await Promise.all([loadPmrem(finishUrl), loadPmrem(opticsUrl)]);
+    scene.environment = finish;
+    scene.environmentRotation.set(0, 2.09, 0);
+    return { finish, optics };
+  }
+
+  return { renderer, scene, camera, pipelineMaterial, resize, setPipelineTexture, render, loadMaterialEnvironments };
 }

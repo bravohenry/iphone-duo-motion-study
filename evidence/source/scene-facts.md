@@ -6,6 +6,8 @@
 - `SOURCE` The public `InteractiveCamera` definition declares radius `35`, FOV `50`, zoom `1.5`, start orbit `phi=PI/2`, `theta=PI`, pitch limit `[1.1519173063, 2.0943951024]`, and damping `[0.22, 0.25]`.
 - `SOURCE` The public state variants declare the primary/pose/accent hierarchy values used by `main.js`; its rotations use the `YXZ -> ZYX -> YXZ` Euler order chain.
 - `SOURCE` The scene routes the fold control through a spring/magnet `Hinge` and routes screen changes through `FadeThroughBlack`; the bare `Slider` glTF clip is therefore an incomplete representation of the source viewer.
+- `SOURCE` The scene assigns `ADsFgCxkeKZYiww.exr` to material layer 4 with rotation `[1, 0.6, 0]`, and `SfFEyQuyjAgUwjH.exr` to layer 5 with rotation `[0, 2.09, 0]`; local hashes confirm these are the retained `apple-environment-alt.exr` and `apple-environment.exr` files respectively.
+- `SOURCE` Material chunks override the bare glTF after load. In particular, `iVzCHFKAaRqjQhl` restores the Apple Logo layer from transparent to visible, while the rear-camera stack receives separate transparency values and reflection layers.
 
 ## Source locations
 

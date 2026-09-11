@@ -7,6 +7,7 @@
 import * as THREE from './assets/three.module.min.js?v=165';
 import { GLTFLoader } from './assets/GLTFLoader.js?v=165';
 import { PIPELINE_STAGES, PASSES_LAYER_COUNT } from './app/config.js?v=1';
+import { applySourceMaterialFidelity } from './app/material-fidelity.js?v=3';
 import { createMockupController } from './app/mockup-controller.js?v=1';
 import { createMotionController } from './app/motion-controller.js?v=3';
 import { downloadTransparentPng } from './app/png-exporter.js?v=3';
@@ -100,8 +101,12 @@ downloadPngButton.addEventListener('click', async () => {
   }
 });
 
-runtime.loadEnvironment('./assets/apple-product-viewer/apple-environment.exr').catch((error) => {
+const environmentsPromise = runtime.loadMaterialEnvironments({
+  finishUrl: './assets/apple-product-viewer/apple-environment.exr',
+  opticsUrl: './assets/apple-product-viewer/apple-environment-alt.exr',
+}).catch((error) => {
   console.error('Environment map failed to load; direct lights remain active.', error);
+  return {};
 });
 
 new GLTFLoader().load('./assets/apple-product-viewer/product-viewer.gltf', (gltf) => {
@@ -114,6 +119,8 @@ new GLTFLoader().load('./assets/apple-product-viewer/product-viewer.gltf', (gltf
   poseRig.rotation.order = 'ZYX';
   accentRig.rotation.order = 'YXZ';
   installDynamicScreens(productRoot, wallpaperRenderer);
+  applySourceMaterialFidelity(productRoot);
+  environmentsPromise.then((environments) => applySourceMaterialFidelity(productRoot, environments));
   accentRig.add(productRoot);
   poseRig.add(accentRig);
   turntable.add(poseRig);

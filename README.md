@@ -1,45 +1,57 @@
-# iPhone Duo Product Viewer — motion study
+# Duo Mock
 
-[Live demo](https://iphone-duo-motion-study.vercel.app) · [GitHub repository](https://github.com/bravohenry/iphone-duo-motion-study)
+[Live demo](https://iphone-duo-motion-study.vercel.app) · [GitHub](https://github.com/bravohenry/iphone-duo-motion-study)
 
-Run from this folder with:
+A React mockup studio around one freely rotatable, folding 3D device.
+
+## Run
 
 ```bash
-python3 -m http.server 4173
+npm ci
+npm run dev
 ```
 
-Then open [http://localhost:4173/foldable-v2.html](http://localhost:4173/foldable-v2.html). A local server is required because the glTF model loads its binary buffer and AVIF texture files by relative URL.
+Open [localhost:4173](http://localhost:4173/). The existing /foldable-v2.html URL runs the same React app. Current sources require Vite, not a Python static server.
 
-## What is included
+```bash
+npm run build
+npm run preview
+npm test
+```
 
-- A default Mockup workspace that accepts local PNG, JPG, WebP and AVIF files by picker or drag-and-drop. Images can target both screens or each screen independently, with Cover/Contain, zoom and two-axis positioning controls. Files stay in the browser and are never uploaded to a server.
-- Custom artwork enters the existing offscreen screen pipeline before the frame, hinge blur and local 3D wipe/shadow passes, so it remains attached to the actual model throughout folding, orbiting and pose changes.
-- Two supporting study views: Product Demo preserves the pose interaction study, and WebGL Pipeline displays each real render stage before the result is mapped to the folding device.
-- WebGL Pipeline reuses the production render targets rather than screenshots: Sky, Stars, Hills and Dunes progressively enable the five source layers; UI, Frame and Blur show their actual offscreen textures; Wipe returns the result to the live 3D screen material.
-- A full-window 3D canvas with a floating pose dock. The manual fold slider appears only in Foldable; the top-right icon resets the view. Narrow windows automatically widen the camera framing to keep the model visible.
-- Foldable includes an optional Auto center control. When enabled, each manual fold sample refreshes the deformed SkinnedMesh bounds and translates the camera target to the whole-device center without changing the user's orbit angle or zoom.
-- The browser-delivered `Slider` glTF animation: 0–2 seconds, 61 keyframes, controlled continuously by the range input.
-- The seven browser-delivered product-viewer pose images are retained as research references only; the running viewer never mounts or crossfades to them.
-- The original product-viewer Finish and Optics EXR environments and dynamic screens rendered from the original wallpaper layers and UI resources. A source-material adapter restores the Lotus scene's AO rebinding, missing Logo visibility, camera-glass transparency and per-material reflection layer/rotation after the bare glTF loads. The inner screen uses a two-channel bicubic mip blur driven by hinge progress; the screen material applies device-local Wipe projection and a hinge-centered radial shadow. Screenshot-derived screen crops and their fallback path have been removed.
-- Screen intermediates remain RGBA16F from wallpaper/UI composition through Frame and both Blur passes. Blur LOD is clamped to its declared eight-level ceiling, and final display materials enable subtle output dithering. Together these prevent over-blurred color bleed and repeated 8-bit quantization from turning dark gradients into visible contour or zebra bands.
-- The browser app is split by responsibility: `main.js` composes lifecycle, while `app/` owns device motion, mockup input, screen materials, immutable state definitions, and WebGL runtime quality. The canvas combines native MSAA with 25% oversampling above device DPR (clamped to a pixel-budgeted 1.5–2.5× range) and an opaque white resolve target to clean high-contrast metal silhouettes without unbounded GPU cost.
-- The download control renders the current camera, pose and screen content into a separate multisampled RGBA target at up to 1.5× the output dimensions, high-quality downsamples it, then crops to the visible Alpha bounds with an 8–32 px safety margin. The transparent PNG contains the current device without the white stage, DOM controls or viewport-sized empty surround.
-- An interruptible seven-state machine: each named state has a target fold value, camera view, and transition. A new choice retargets from the current in-flight value instead of waiting for a previous transition to finish; it never replaces the model with a pose image.
+Vercel builds dist/ with npm. Root and /foldable-v2 are supported; the cleanUrls rewrite intentionally targets the extensionless route.
 
-## Research observations
+## Workspace
 
-| State | Source behaviour | This study |
-| --- | --- | --- |
-| Foldable design | Continuous folding gesture; original default is 1/3 | Range maps linearly to the original 2-second `Slider` clip |
-| Landscape → Durability | Six named, discrete viewer states | Each has a target fold point and camera composition; the same 3D model remains available for inspection at rest |
-| State transition | A change in view is interruptible | The rig and camera retarget from their current values without a fallback-image handoff; Foldable → Landscape uses a slower 1 s ease-in/fast-out profile |
+- Duo Mock: fullscreen dark/light workspace, TikTok Display wordmark, real shadcn Radix Nova controls and the prior Phosphor pose icons.
+- Six icon-only segments: Closed (default), Foldable, Landscape, Portrait, Seated and Standing. Durability is removed.
+- Add your design contains local PNG/JPEG/WebP/AVIF import, inner/outer/both targeting, Cover/Contain, scale, horizontal/vertical crop, reset, fold progress and camera reset.
+- Only Foldable allows manual 0–180° hinge adjustment; named poses use their configured fold angle.
+- Folding and pose transitions automatically target deformed whole-device bounds. Free rotation, zoom and pan remain available at rest. There is no centering toggle.
+- Camera movement is manual. Cinematic and its automatic orbit are removed.
+- Transparent PNG uses the current model, materials and camera, supersamples offscreen, then crops to visible Alpha bounds with a small safety margin. Theme background and DOM controls are excluded.
+- No screenshot handoff, fold play button, permanent gesture instructions or footer captions.
+- The information dialog keeps interaction help and the Product Demo/WebGL Pipeline study views off the main canvas.
+- Imported images stay in the browser; they are never uploaded.
 
-The initial free-camera pose is taken from the delivered scene data, not inferred from the glTF bounds: spherical radius `35`, `phi π/2`, `theta π`, FOV `50`, zoom `1.5`; its pitch limits are `1.1519–2.0944` radians. The source pose hierarchy uses `YXZ → ZYX → YXZ` Euler orders; those orders are preserved locally so its composed reference angle does not flip to an unrelated side view. The viewer uses the same direct-delivery Finish and Optics EXRs, with the source layer rotations, for material reflections. Orbit controls keep the source limits while offering standard mouse/touch gestures: left-drag orbit, wheel/pinch zoom, right-drag/two-finger pan, and Reset 3D view.
+## Architecture
 
-## Fidelity boundary
+React 19.3 + Vite 6.4 + Tailwind 4.3 + shadcn Radix Nova. React manages panels and application state; Three.js r165 retains a single independent render loop. Viewer subscriptions are field-specific, so folding does not repeatedly render the whole UI. Migrating to React improves component boundaries; it is not a claim of faster WebGL rendering.
 
-This local deliverable is a `PIPELINE_REPLAY`, not a byte-for-byte source-runtime replay. Apple’s public scene definition names custom `Hinge`, `FadeThroughBlack`, `WallpaperRenderer`, `Wipe`, `VariantWeights`, and `InteractiveCamera` components. The replay preserves the delivered geometry, clips, camera limits, EXR, five-layer wallpaper, screen UI, source Wipe parameters, and the two-pass blur structure. For the requested free camera, wallpaper sampling remains anchored to device UV with a small local-planar parallax contribution so arbitrary orbits cannot push the screen content outside its render target.
+ui/ owns React components. main.js exposes createViewer(canvas), subscribe/getSnapshot and semantic commands. app/ owns pose motion, input, rendering, material fidelity and PNG export. wallpaper-renderer.js retains the RGBA16F screen pipeline. vite.config.js aliases local Three.js to one module and copies original assets, shaders and texture decoders without re-encoding them.
 
-## Provenance and boundary
+The old generated bundle.js is retired. research.html preserves the early standalone study; foldable.html redirects to the current workspace.
 
-The `assets/apple-product-viewer/` files were fetched on 2026-09-10 from the publicly delivered resources of [Apple's iPhone Duo page](https://www.apple.com/iphone-duo/); `assets/three.module.min.js` and `assets/GLTFLoader.js` are the local Three.js renderer/loader. The bundle is for local design/engineering research only. Do not redistribute or deploy the Apple media/model without the relevant rights and approval.
+## Rendering and motion retained
+
+The source-delivered Slider clip runs from 0–2 seconds with 61 keyframes. LoopOnce clamps the exact 100% endpoint instead of wrapping to closed. Six transitions are interruptible; Foldable → Landscape retains its slower 1-second ease-in/fast-out profile.
+
+The source rig Euler orders remain YXZ → ZYX → YXZ. Whole-device centering updates SkinnedMesh binding matrices before measuring deformed bounds. The studio uses source-based spherical framing with a 1.8 camera zoom for its available canvas. Mockup allows free orbit; Product Demo preserves source pitch limits.
+
+Original Finish/Optics EXRs, AO rebinding, Logo visibility, camera-glass transparency and source reflection layers remain shared between screen and export. Custom artwork enters the screen pipeline before Frame, hinge-driven bicubic blur and device-local Wipe/shadow. Intermediates remain RGBA16F; final output dithering and multisample/supersample rendering preserve the earlier quality work.
+
+## Provenance
+
+This is a PIPELINE_REPLAY, not a byte-for-byte reproduction of Apple's runtime. Device geometry, textures, environments and reference media came from the publicly delivered [iPhone Duo page](https://www.apple.com/iphone-duo/) on 2026-09-10. Source-derived effects are reconstructed locally; arbitrary free-camera projection is a local adaptation.
+
+Apple assets retain their original rights; this independent study does not grant redistribution or commercial-use rights. Phosphor's MIT license is in assets/icons/LICENSE. TikTok Display font provenance is in assets/fonts/CLAUDE.md; its original rights remain unchanged. Research boundaries and historical evidence remain in the repository; see design-qa.md for the current UI acceptance record.

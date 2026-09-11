@@ -1,35 +1,38 @@
-# iPhone Duo Motion Study - local interaction research rig
+# Duo Mock - 可自由构图的折叠设备 Mockup 工作台
 
-Static HTML + modular local Three.js runtime + publicly delivered reference media. `foldable-v2.html` owns the full-viewport canvas and contextual controls; `main.js` is the composition root; `app/` separates motion, render quality, source-material fidelity, screen materials, mockup input and shared configuration; `wallpaper-renderer.js` owns the inspectable offscreen screen-pixel pipeline and custom-image composition. Research explanations stay in README rather than the viewer.
+React 19.3 + Vite 6.4 + Tailwind CSS 4.3 + shadcn Radix Nova + Three.js r165
 
 <directory>
-app/ - browser application modules for configuration, render runtime, source-material fidelity, device motion, screen materials and mockup input
-assets/ - local runtime and original reference resources (model, EXR, pose references and wallpaper layers); screenshot-derived screen crops are excluded
-shaders/ - source-derived wallpaper, bicubic blur and device-local Wipe projection passes
-math/ - wallpaper motion matrix helpers
-libs/ - local texture decoder dependencies
-utils/ - local loader dependencies
-evidence/ - target-bound runtime and source findings used to distinguish source replay from a local behavior rebuild
+ui/ - React 界面与基础控件 (2 子目录: components、lib)；不持有 Three.js 场景对象
+app/ - 运动、素材、质量与 PNG 导出领域模块；只通过 viewer 状态/命令接口服务 UI
+tests/ - 无 GPU 的图片状态/竞态与产品姿态契约回归；真实渲染另行浏览器验证
+assets/ - 原始模型、EXR、屏幕素材、本地 Three.js、Phosphor SVG 与 TikTok Display 标题字体
+shaders/ - 原始壁纸、双向模糊与设备局部 Wipe 着色流程
+math/ - 壁纸运动矩阵工具
+libs/ - 原始纹理解码依赖
+utils/ - 原始加载辅助工具
+evidence/ - 历史资源溯源与本轮工作台验证证据；不进入应用构建
 </directory>
 
 <config>
-README.md - provenance, run instructions, and interaction findings
-main.js - composition root for the three views, GLTF/wallpaper lifecycles and the single render loop
-wallpaper-renderer.js - all-stage RGBA16F screen pipeline, user-image canvas composition, FramePass, two-pass blur, final-output dithering, debug targets and screen-local Wipe projection
-foldable-v2.html - current full-viewport ES-module entrypoint; Mockup with transparent PNG export, Product Demo and WebGL Pipeline segments with contextual controls
-index.html - original research page retained as an earlier reference
-foldable.html - earlier viewer retained for comparison
-bundle.js - generated browser bundle of main.js and the local Three.js dependencies
-scout-card.json - locked product-viewer surface and primary source-trace route
-replay-manifest.json - replay tier, source facts, rendering gaps, and fallback boundary
-known-gaps.md - source-versus-local fidelity differences and explicit substitutions
-qa-report.md - current build and live-canvas acceptance evidence
-extraction-report.md - source-runtime boundary and local replay rationale
-vercel.json - serves foldable-v2.html at the deployment root with clean URLs
-.vercelignore - excludes research evidence, old entries and unused JPG references from deployment
-.gitignore - excludes local Vercel linkage and macOS metadata from Git history
+main.js - createViewer(canvas) 组合根；单例 WebGL 生命周期、订阅状态及语义命令
+wallpaper-renderer.js - RGBA16F 屏幕流水线、自定义图片、Frame/Blur/Wipe 与调试纹理
+index.html - 生产根入口，挂载与 foldable-v2.html 相同的 React 应用
+foldable-v2.html - 保留已有链接的 React HTML 宿主，无业务状态或事件处理
+foldable.html - 旧链接跳转至当前工作台
+research.html - 早期独立 model-viewer 研究页面快照，不进入生产构建
+package.json / package-lock.json - npm 脚本与锁定的依赖图；不再使用 Python 静态服务启动当前工作台
+vite.config.js - React/Tailwind 编译、单实例 Three.js alias、原始静态资源复制；构建至 dist/
+components.json - 官方 shadcn Radix Nova 配置，JS、Lucide、ui/ 路径别名
+jsconfig.json - @/* 对应 ui/*，供编辑器和 shadcn CLI 识别
+vercel.json - npm 构建 dist/，保留 cleanUrls 下根路径到 /foldable-v2 的重写
+.gitignore / .vercelignore - 排除本地依赖、构建缓存、部署链接与研究证据
+README.md - 使用、功能、React/3D 边界和资源来源
+design-qa.md - 本轮 React 工作台的实测结果与剩余限制
+scout-card.json / replay-manifest.json - 原始资源与重放层级的历史审计记录
+known-gaps.md / qa-report.md / extraction-report.md - 早期渲染研究边界及验收证据
 </config>
 
-法则: 本地研究·资源可追溯·交互状态显式
+React 只管理面板、主题与低频状态；折叠与相机在独立 RAF 更新。六形态顺序以 app/config.js 为准，Closed 为默认；几何居中始终启用。底部只保留图标分段栏，折叠滑杆归 Add your design 面板；不提供自动环绕。删除旧生成 bundle.js，避免两套入口漂移。
 
-[PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
+法则: 极简·稳定·资源可追溯·界面与渲染解耦

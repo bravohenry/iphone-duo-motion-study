@@ -1,128 +1,24 @@
 <!--
-  [INPUT]: 依赖 main.js 的交互状态机、wallpaper-renderer.js 的屏幕像素管线，以及原始设备/壁纸资源。
-  [OUTPUT]: 提供可上传图片及透明 PNG 导出的 Mockup 工作区、Product Demo、WebGL Pipeline、折叠自动居中选项、GitHub 仓库入口及各自控件。
-  [POS]: 当前研究交付的主入口；共享一个 WebGL 画布，以 segment control 切换屏幕 mockup、产品演示和渲染管线。
+  [INPUT]: 依赖 ui/main.jsx 启动 React + Vite 应用，WebGL 只使用专属 canvas。
+  [OUTPUT]: 提供 Duo Mock 的空挂载点，不包含业务控件或内联状态逻辑。
+  [POS]: 浏览器 HTML 引导文件；所有界面由 React 组件渲染。
   [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
 <!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Foldable motion study</title>
-    <style>
-      :root { --ink:#1d1d1f; --muted:#6e6e73; --glass:rgba(245,245,247,.88); --blue:#0071e3; }
-      * { box-sizing:border-box; }
-      html,body { width:100%; height:100%; overflow:hidden; }
-      body { margin:0; background:#fff; color:var(--ink); font:14px/1.35 -apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif; }
-      button,input { font:inherit; } button { -webkit-tap-highlight-color:transparent; }
-      [hidden] { display:none!important; }
-      #stage { position:fixed; inset:0; height:100dvh; overflow:hidden; background:#fff; }
-      #webgl { display:block; position:absolute; inset:0; width:100%; height:100%; touch-action:none; cursor:grab; }
-      #webgl:active { cursor:grabbing; }
-      .panel { position:absolute; z-index:2; left:50%; bottom:max(24px,env(safe-area-inset-bottom)); transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; gap:12px; width:max-content; max-width:calc(100% - 32px); pointer-events:none; }
-      .glass { background:var(--glass); border:1px solid #00000008; box-shadow:0 3px 16px #00000006; backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); }
-      #fold-controls { display:flex; align-items:center; gap:12px; width:min(390px,100%); padding:4px 8px 4px 16px; border-radius:999px; pointer-events:auto; }
-      #fold { flex:1; min-width:0; height:32px; margin:0; accent-color:var(--blue); cursor:ew-resize; }
-      #fold-value { min-width:34px; color:var(--muted); font-size:12px; font-variant-numeric:tabular-nums; text-align:right; }
-      #auto-center { flex:none; min-height:32px; border:0; border-radius:999px; padding:0 11px; color:var(--muted); background:#fff8; cursor:pointer; white-space:nowrap; }
-      #auto-center[aria-pressed="true"] { color:#fff; background:var(--ink); }
-      .icon-button { display:grid; place-items:center; flex:none; width:40px; height:40px; padding:10px; border:0; border-radius:50%; background:transparent; color:var(--ink); cursor:pointer; }
-      .icon-button svg { width:20px; height:20px; }
-      #reset-view { position:absolute; z-index:2; right:max(24px,env(safe-area-inset-right)); top:max(24px,env(safe-area-inset-top)); width:44px; height:44px; }
-      #github-link { position:absolute; z-index:2; right:max(80px,env(safe-area-inset-right) + 56px); top:max(24px,env(safe-area-inset-top)); width:44px; height:44px; text-decoration:none; }
-      #download-png { position:absolute; z-index:2; right:max(136px,env(safe-area-inset-right) + 112px); top:max(24px,env(safe-area-inset-top)); width:44px; height:44px; }
-      #download-png[aria-busy="true"] { opacity:.45; cursor:wait; }
-      #lesson-switcher { position:absolute; z-index:3; top:max(24px,env(safe-area-inset-top)); left:50%; transform:translateX(-50%); display:flex; gap:3px; padding:4px; border-radius:999px; }
-      .lesson-tab { min-height:36px; border:0; border-radius:999px; padding:8px 16px; color:var(--muted); background:transparent; cursor:pointer; white-space:nowrap; }
-      .lesson-tab[aria-selected="true"] { color:var(--ink); background:#fff; box-shadow:0 1px 5px #0002; }
-      #controls { display:flex; flex-wrap:wrap; justify-content:center; gap:4px; max-width:100%; padding:6px; border-radius:28px; pointer-events:auto; }
-      .control { flex:none; min-height:40px; border:0; border-radius:999px; padding:10px 15px; color:var(--muted); background:transparent; cursor:pointer; white-space:nowrap; transition:background 160ms ease-out,color 160ms ease-out; }
-      .control[aria-pressed="true"] { color:#fff; background:var(--ink); }
-      button:focus-visible,input:focus-visible { outline:2px solid var(--blue); outline-offset:3px; }
-      @media (hover:hover) { .control:not([aria-pressed="true"]):hover,.icon-button:hover { color:var(--ink); background:#00000008; } }
-      #status { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); max-width:calc(100% - 48px); margin:0; padding:12px 16px; border-radius:16px; text-align:center; }
-      .lesson-panel { position:absolute; z-index:2; left:50%; bottom:max(24px,env(safe-area-inset-bottom)); transform:translateX(-50%); display:flex; align-items:center; gap:12px; padding:8px; border-radius:999px; }
-      #pipeline-panel { left:max(24px,env(safe-area-inset-left)); top:104px; bottom:auto; transform:none; width:270px; align-items:stretch; flex-direction:column; border-radius:24px; padding:14px; }
-      #pipeline-panel h2 { margin:2px 4px 3px; font-size:17px; }
-      #pipeline-panel p { margin:0 4px 8px; color:var(--muted); font-size:12px; }
-      #pipeline-stages { display:grid; grid-template-columns:1fr 1fr; gap:5px; }
-      .pipeline-stage { min-height:36px; border:0; border-radius:12px; padding:8px 10px; color:var(--muted); background:#fff8; text-align:left; cursor:pointer; }
-      .pipeline-stage[aria-pressed="true"] { color:#fff; background:var(--ink); }
-      #stage-description { min-height:48px; padding-top:7px; border-top:1px solid #0001; }
-      #mockup-panel { left:max(24px,env(safe-area-inset-left)); top:104px; bottom:auto; transform:none; width:286px; align-items:stretch; flex-direction:column; border-radius:24px; padding:14px; gap:12px; }
-      .mockup-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; }
-      .mockup-heading h2 { margin:0 4px; font-size:17px; }
-      .text-button { border:0; padding:6px 8px; color:var(--muted); background:transparent; cursor:pointer; }
-      #mockup-drop { display:grid; place-items:center; min-height:104px; padding:16px; border:1px dashed #0002; border-radius:16px; background:#fff9; text-align:center; cursor:pointer; transition:border-color 160ms ease,background 160ms ease; }
-      #mockup-drop[data-active="true"] { border-color:var(--blue); background:#eaf4ff; }
-      #mockup-drop strong { display:block; margin-bottom:4px; font-size:13px; }
-      #mockup-drop span { color:var(--muted); font-size:11px; }
-      .mockup-segment { display:grid; grid-template-columns:repeat(3,1fr); gap:3px; padding:3px; border-radius:12px; background:#00000008; }
-      .mockup-segment button { min-height:32px; border:0; border-radius:9px; color:var(--muted); background:transparent; cursor:pointer; }
-      .mockup-segment button[aria-pressed="true"] { color:var(--ink); background:#fff; box-shadow:0 1px 4px #0002; }
-      .mockup-row { display:grid; grid-template-columns:54px 1fr; align-items:center; gap:10px; color:var(--muted); font-size:12px; }
-      .mockup-row input[type="range"] { width:100%; min-width:0; accent-color:var(--blue); }
-      .mockup-row select { width:100%; min-height:34px; padding:0 9px; border:1px solid #0001; border-radius:10px; background:#fff; color:var(--ink); }
-      .mockup-hint { margin:0 4px; color:var(--muted); font-size:11px; text-align:center; }
-      @media (max-width:700px) { .panel,.lesson-panel { bottom:max(16px,env(safe-area-inset-bottom)); gap:8px; } #controls { gap:2px; padding:5px; border-radius:22px; } .control { min-height:40px; padding:10px 12px; font-size:12px; } #reset-view { top:max(76px,env(safe-area-inset-top) + 52px); right:max(16px,env(safe-area-inset-right)); } #github-link { top:max(76px,env(safe-area-inset-top) + 52px); right:max(68px,env(safe-area-inset-right) + 52px); } #download-png { top:max(76px,env(safe-area-inset-top) + 52px); right:max(120px,env(safe-area-inset-right) + 104px); } #lesson-switcher { top:max(12px,env(safe-area-inset-top)); max-width:calc(100% - 24px); overflow-x:auto; } .lesson-tab { padding:8px 10px; font-size:12px; } #pipeline-panel { top:72px; left:12px; width:min(250px,calc(100% - 24px)); } #mockup-panel { top:auto; left:12px; right:12px; bottom:12px; width:auto; max-height:44vh; overflow:auto; } }
-      @media (max-width:700px) { #mockup-panel { bottom:94px; max-height:42vh; } }
-      @media (prefers-reduced-motion:reduce) { *,*::before,*::after { transition:none!important; animation:none!important; } }
-    </style>
-    <script type="importmap">{"imports":{"three":"./assets/three.module.min.js?v=165"}}</script>
-  </head>
-  <body>
-    <main>
-      <section id="stage" aria-label="Foldable product viewer">
-        <canvas id="webgl" aria-label="Interactive foldable product model. Drag to orbit and use the scroll wheel to zoom."></canvas>
-        <nav id="lesson-switcher" class="glass" aria-label="Teaching views" role="tablist">
-          <button class="lesson-tab" type="button" role="tab" aria-selected="true" data-view="mockup">Mockup</button>
-          <button class="lesson-tab" type="button" role="tab" aria-selected="false" data-view="demo">Product Demo</button>
-          <button class="lesson-tab" type="button" role="tab" aria-selected="false" data-view="pipeline">WebGL Pipeline</button>
-        </nav>
-        <button id="reset-view" class="icon-button glass" type="button" aria-label="Reset 3D view" title="Reset view">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10a8 8 0 1 1 2 8M4 4v6h6"/></svg>
-        </button>
-        <a id="github-link" class="icon-button glass" href="https://github.com/bravohenry/iphone-duo-motion-study" target="_blank" rel="noreferrer" aria-label="View source on GitHub" title="GitHub">
-          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .7a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2.02c-3.22.7-3.9-1.37-3.9-1.37-.52-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.71.08-.71 1.17.08 1.78 1.2 1.78 1.2 1.04 1.78 2.72 1.27 3.38.97.1-.75.4-1.27.74-1.56-2.57-.3-5.27-1.29-5.27-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.47.11-3.06 0 0 .97-.31 3.16 1.18a10.9 10.9 0 0 1 5.76 0c2.2-1.49 3.16-1.18 3.16-1.18.63 1.59.23 2.77.11 3.06.74.81 1.19 1.84 1.19 3.1 0 4.42-2.71 5.39-5.29 5.68.42.36.79 1.07.79 2.16v3.2c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .7Z"/></svg>
-        </a>
-        <button id="download-png" class="icon-button glass" type="button" aria-label="Download transparent PNG" title="Download transparent PNG" disabled>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v11m0 0 4-4m-4 4-4-4M5 18v2h14v-2"/></svg>
-        </button>
-        <div class="panel">
-          <div id="fold-controls" class="glass">
-            <input id="fold" type="range" min="0" max="1" step="0.001" value="0.333" aria-label="Fold amount" />
-            <output id="fold-value" for="fold">33%</output>
-            <button id="auto-center" type="button" aria-pressed="false">Auto center</button>
-          </div>
-          <nav id="controls" class="glass" aria-label="Product poses"></nav>
-        </div>
-        <aside id="mockup-panel" class="lesson-panel glass" aria-label="Screen mockup controls">
-          <div class="mockup-heading"><h2>Screen Mockup</h2><button id="mockup-clear" class="text-button" type="button">Clear</button></div>
-          <label id="mockup-drop" for="mockup-file" tabindex="0">
-            <strong>Choose an image</strong><span>or drop PNG, JPG, WebP or AVIF</span>
-          </label>
-          <input id="mockup-file" type="file" accept="image/png,image/jpeg,image/webp,image/avif" hidden />
-          <div id="mockup-targets" class="mockup-segment" aria-label="Target screen">
-            <button type="button" data-target="both" aria-pressed="true">Both</button>
-            <button type="button" data-target="inner" aria-pressed="false">Inner</button>
-            <button type="button" data-target="outer" aria-pressed="false">Outer</button>
-          </div>
-          <label class="mockup-row"><span>Fit</span><select id="mockup-fit"><option value="cover">Cover</option><option value="contain">Contain</option></select></label>
-          <label class="mockup-row"><span>Zoom</span><input id="mockup-zoom" type="range" min="1" max="3" step="0.01" value="1" /></label>
-          <label class="mockup-row"><span>Left / right</span><input id="mockup-x" type="range" min="-1" max="1" step="0.01" value="0" /></label>
-          <label class="mockup-row"><span>Up / down</span><input id="mockup-y" type="range" min="-1" max="1" step="0.01" value="0" /></label>
-          <p class="mockup-hint">Drag to rotate · scroll to zoom · right-drag to move</p>
-        </aside>
-        <aside id="pipeline-panel" class="lesson-panel glass" aria-label="WebGL rendering stages" hidden>
-          <h2>WebGL Pipeline</h2>
-          <p>Inspect each render target before it reaches the device screen.</p>
-          <div id="pipeline-stages"></div>
-          <p id="stage-description"></p>
-        </aside>
-        <p id="status" class="glass" role="alert" hidden></p>
-      </section>
-    </main>
-  <script type="module" src="./main.js?v=materials-4"></script>
-  </body>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark light" />
+  <meta name="description" content="Duo Mock. Add your design, explore seven 3D poses, and export a transparent PNG." />
+  <title>Duo Mock — iPhone Duo Mockup</title>
+  <script type="importmap">{"imports":{"three":"/assets/three.module.min.js?v=165"}}</script>
+</head>
+<body>
+  <main id="stage" aria-label="Duo Mock workspace">
+    <canvas id="webgl" aria-label="Interactive foldable model"></canvas>
+    <div id="root"></div>
+  </main>
+  <script type="module" src="/ui/main.jsx"></script>
+</body>
 </html>

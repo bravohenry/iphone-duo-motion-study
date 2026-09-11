@@ -1,162 +1,24 @@
 <!--
-  [INPUT]: 依赖 assets/apple-product-viewer 的原始 glTF、纹理和状态图片，依赖本地 model-viewer runtime。
-  [OUTPUT]: 提供 Foldable design 的连续折叠交互、Intro 回放，以及六个离散姿态切换。
-  [POS]: iphone-duo-motion-study 的唯一可运行入口；将研究到的状态机与可替换媒体边界放在同一处。
+  [INPUT]: 依赖 ui/main.jsx 启动 React + Vite 应用，WebGL 只使用专属 canvas。
+  [OUTPUT]: 提供 Duo Mock 的空挂载点，不包含业务控件或内联状态逻辑。
+  [POS]: 浏览器 HTML 引导文件；所有界面由 React 组件渲染。
   [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
 <!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="color-scheme" content="light" />
-    <title>Foldable design — motion study</title>
-    <script type="module" src="./assets/model-viewer.min.js"></script>
-    <style>
-      :root { --ink: #1d1d1f; --muted: #6e6e73; --surface: #fff; --wash: #f5f5f7; --chip: #ececf0; --blue: #0071e3; --curve: cubic-bezier(.2,.8,.2,1); }
-      * { box-sizing: border-box; }
-      body { margin: 0; min-width: 320px; background: var(--wash); color: var(--ink); font: 15px/1.35 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; }
-      button, input { font: inherit; }
-      .page { width: min(1120px, calc(100% - 40px)); margin: 0 auto; padding: 28px 0 72px; }
-      .eyebrow { display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 12px; letter-spacing: .04em; text-transform: uppercase; }
-      h1 { margin: 26px 0 28px; font-size: clamp(36px, 5.3vw, 68px); line-height: .98; letter-spacing: -.055em; }
-      .stage { position: relative; overflow: hidden; min-height: 650px; border-radius: 28px; background: var(--surface); box-shadow: 0 18px 40px rgba(0,0,0,.05); }
-      .viewer { position: absolute; inset: 0 0 0 33%; display: grid; place-items: center; overflow: hidden; }
-      model-viewer { width: 100%; height: 100%; --poster-color: transparent; background: transparent; opacity: 1; transition: opacity 220ms var(--curve); }
-      .pose { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0; transform: scale(1.015); transition: opacity 260ms var(--curve), transform 260ms var(--curve); pointer-events: none; }
-      .viewer.pose-active model-viewer { opacity: 0; }
-      .viewer.pose-active .pose { opacity: 1; transform: scale(1); }
-      .panel { position: relative; z-index: 2; width: min(330px, 43%); padding: 72px 0 40px 64px; }
-      .detail { margin-bottom: 18px; padding: 22px; border-radius: 20px; background: var(--chip); }
-      .detail p { margin: 0; }
-      .detail strong { font-weight: 600; }
-      .slider-label { display: block; margin: 16px 0 10px; color: var(--muted); font-size: 12px; }
-      .range { width: 100%; accent-color: var(--blue); cursor: ew-resize; }
-      .range:focus-visible { outline: 3px solid rgba(0,113,227,.35); outline-offset: 5px; border-radius: 8px; }
-      .value { display: block; margin-top: 8px; color: var(--muted); font-size: 12px; }
-      .replay { width: 100%; margin-top: 16px; border: 0; border-radius: 999px; padding: 10px 14px; color: #fff; background: var(--blue); cursor: pointer; transition: transform 140ms ease-out, background 140ms ease-out; }
-      .replay:hover { background: #0077ed; }
-      .replay:active { transform: scale(.97); }
-      .replay:focus-visible, .control:focus-visible { outline: 3px solid rgba(0,113,227,.35); outline-offset: 3px; }
-      .controls { display: grid; gap: 9px; margin: 28px 0 0; padding: 0; list-style: none; }
-      .control { width: max-content; max-width: 100%; border: 0; border-radius: 999px; padding: 10px 15px; color: var(--ink); background: var(--chip); cursor: pointer; text-align: left; transition: background 160ms ease-out, transform 160ms ease-out; }
-      .control:hover { background: #dedee3; }
-      .control:active { transform: scale(.97); }
-      .control[aria-pressed="true"] { color: #fff; background: var(--ink); }
-      .control::before { content: "+"; display: inline-grid; place-items: center; width: 17px; height: 17px; margin-right: 9px; border: 1.5px solid currentColor; border-radius: 50%; font-size: 14px; line-height: 1; vertical-align: -1px; }
-      .control[aria-pressed="true"]::before { content: "–"; }
-      .note { margin: 24px 0 0; color: var(--muted); font-size: 13px; }
-      .note code { color: var(--ink); }
-      @media (max-width: 780px) {
-        .page { width: min(100% - 24px, 680px); padding-top: 18px; }
-        .stage { min-height: 760px; border-radius: 22px; }
-        .panel { width: 100%; padding: 28px 24px 0; }
-        .viewer { inset: 345px 0 0; }
-        .controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        .control { width: 100%; }
-      }
-      @media (prefers-reduced-motion: reduce) {
-        *, *::before, *::after { transition: none !important; animation: none !important; }
-      }
-    </style>
-  </head>
-  <body>
-    <main class="page">
-      <div class="eyebrow"><span>Local motion research</span><span>3D + state viewer</span></div>
-      <h1>Foldable design.</h1>
-      <section class="stage" aria-label="Foldable product viewer research">
-        <div class="viewer" id="viewer">
-          <model-viewer id="model" src="./assets/apple-product-viewer/product-viewer.gltf" animation-name="Slider" exposure="1.1" shadow-intensity="1" interaction-prompt="none" camera-orbit="35deg 74deg 88%" camera-target="0m 0m 0m" alt="Foldable phone reference model"></model-viewer>
-          <img id="pose" class="pose" alt="Selected product-viewer reference pose" />
-        </div>
-        <div class="panel">
-          <div class="detail">
-            <p><strong id="title">Foldable design.</strong> <span id="description">Offers exceptional viewing experiences in a design that fits in your pocket.</span></p>
-            <label class="slider-label" for="fold">Drag below to open and close</label>
-            <input class="range" id="fold" type="range" min="0" max="1" step="0.001" value="0.333" aria-describedby="fold-value" />
-            <output class="value" id="fold-value" for="fold">Partially folded · 33%</output>
-            <button class="replay" id="replay" type="button">Replay entrance</button>
-          </div>
-          <ul class="controls" id="controls" aria-label="Product poses"></ul>
-        </div>
-      </section>
-      <p class="note">Research implementation: direct-delivery glTF, textures, and pose media are local under <code>assets/apple-product-viewer/</code>. UI state logic is original and replaceable.</p>
-    </main>
-    <script>
-      const clipSeconds = 2;
-      const states = [
-        { id: 'foldable', label: 'Foldable design', image: 'foldable.jpg', title: 'Foldable design.', text: 'Offers exceptional viewing experiences in a design that fits in your pocket.', interactive: true },
-        { id: 'landscape', label: 'Landscape', image: 'landscape.jpg', title: 'Landscape.', text: 'An open, wide canvas for work and entertainment.' },
-        { id: 'portrait', label: 'Portrait', image: 'portrait.jpg', title: 'Portrait.', text: 'A tall, expanded view when the moment calls for it.' },
-        { id: 'closed', label: 'Closed', image: 'closed.jpg', title: 'Closed.', text: 'A compact outer-display state for the essentials.' },
-        { id: 'seated', label: 'Seated', image: 'seated.jpg', title: 'Seated.', text: 'A half-open pose that separates content and controls.' },
-        { id: 'standing', label: 'Standing', image: 'standing.jpg', title: 'Standing.', text: 'A self-supporting pose for hands-free viewing.' },
-        { id: 'durability', label: 'Durability', image: 'durability.jpg', title: 'Durability.', text: 'A close reference view of the hinge and enclosure.' },
-      ];
-
-      const model = document.querySelector('#model');
-      const viewer = document.querySelector('#viewer');
-      const pose = document.querySelector('#pose');
-      const slider = document.querySelector('#fold');
-      const foldValue = document.querySelector('#fold-value');
-      const replay = document.querySelector('#replay');
-      const title = document.querySelector('#title');
-      const description = document.querySelector('#description');
-      const controls = document.querySelector('#controls');
-      let selected = states[0];
-
-      states.forEach((state) => {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'control';
-        button.dataset.state = state.id;
-        button.setAttribute('aria-pressed', String(state.id === selected.id));
-        button.textContent = state.label;
-        button.addEventListener('click', () => select(state));
-        controls.append(button);
-      });
-
-      function foldDescription(value) {
-        const percent = Math.round(value * 100);
-        return value < .06 ? `Closed · ${percent}%` : value > .94 ? `Open · ${percent}%` : `Partially folded · ${percent}%`;
-      }
-
-      function setSliderTime(value) {
-        model.animationName = 'Slider';
-        model.pause();
-        model.currentTime = Number(value) * clipSeconds;
-        foldValue.value = foldDescription(Number(value));
-      }
-
-      function select(state) {
-        selected = state;
-        title.textContent = state.title;
-        description.textContent = state.text;
-        controls.querySelectorAll('.control').forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.state === state.id)));
-        const isInteractive = state.interactive;
-        slider.disabled = !isInteractive;
-        replay.disabled = !isInteractive;
-        slider.setAttribute('aria-hidden', String(!isInteractive));
-        replay.setAttribute('aria-hidden', String(!isInteractive));
-        if (isInteractive) {
-          viewer.classList.remove('pose-active');
-          setSliderTime(slider.value);
-        } else {
-          pose.src = `./assets/apple-product-viewer/${state.image}`;
-          pose.alt = `${state.label} reference pose`;
-          viewer.classList.add('pose-active');
-        }
-      }
-
-      model.addEventListener('load', () => setSliderTime(slider.value));
-      slider.addEventListener('input', (event) => setSliderTime(event.target.value));
-      replay.addEventListener('click', () => {
-        if (!selected.interactive) return;
-        model.animationName = 'Intro';
-        model.currentTime = 0;
-        model.play({ repetitions: 1 });
-        window.setTimeout(() => setSliderTime(slider.value), clipSeconds * 1000 + 80);
-      });
-    </script>
-  </body>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark light" />
+  <meta name="description" content="Duo Mock. Add your design, explore seven 3D poses, and export a transparent PNG." />
+  <title>Duo Mock — iPhone Duo Mockup</title>
+  <script type="importmap">{"imports":{"three":"/assets/three.module.min.js?v=165"}}</script>
+</head>
+<body>
+  <main id="stage" aria-label="Duo Mock workspace">
+    <canvas id="webgl" aria-label="Interactive foldable model"></canvas>
+    <div id="root"></div>
+  </main>
+  <script type="module" src="/ui/main.jsx"></script>
+</body>
 </html>

@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": { "@/*": ["./ui/*"] },
+    "jsx": "react-jsx"
+  },
+  "include": ["ui", "app", "main.js", "vite.config.js"]
+}

@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 仅依赖 JavaScript 数学常量。
- * [OUTPUT]: 提供折叠动画时长、壁纸层数、七种产品姿态和八个 WebGL 教学阶段。
+ * [OUTPUT]: 提供折叠动画时长、壁纸层数、六种产品姿态和八个 WebGL 教学阶段。
  * [POS]: app 的不可变配置层；为 motion controller 与主编排提供同一份产品状态定义。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -9,13 +9,12 @@ export const CLIP_SECONDS = 2;
 export const PASSES_LAYER_COUNT = 5;
 
 export const PRODUCT_STATES = [
+  { id: 'closed', label: 'Closed', fold: 0, primary: { position: [4, 0, 0] } },
   { id: 'foldable', label: 'Foldable', fold: .3333, interactive: true, primary: { position: [2.668, 0, 0] } },
   { id: 'landscape', label: 'Landscape', fold: 1 },
   { id: 'portrait', label: 'Portrait', fold: 1, pose: { rotation: [0, Math.PI / 2, 0] } },
-  { id: 'closed', label: 'Closed', fold: 0, primary: { position: [4, 0, 0] } },
   { id: 'seated', label: 'Seated', fold: .5111, orbit: [31, 1.38, -Math.PI / 2], primary: { position: [0, -4, 0] }, pose: { rotation: [0, Math.PI / 2, -Math.PI / 2] } },
   { id: 'standing', label: 'Standing', fold: .25, orbit: [29, 1.45, Math.PI * .8], primary: { position: [0, 4, .2562] }, accent: { rotation: [0, -Math.PI / 2, -Math.PI / 8] } },
-  { id: 'durability', label: 'Durability', fold: .3333, orbit: [25, 1.43, Math.PI * .52], primary: { position: [4, 0, .2379] }, pose: { rotation: [0, 0, -Math.PI / 6] } },
 ];
 
 export const PIPELINE_STAGES = [

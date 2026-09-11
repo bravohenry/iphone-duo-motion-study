@@ -1,6 +1,6 @@
 /**
  * [INPUT]: 依赖 Three.js、EXRLoader、render-quality 像素预算、全屏 canvas 与 apple-product-viewer 环境贴图。
- * [OUTPUT]: 提供主场景/教学场景、相机、渲染器、自适应超采样 resize、双层 PMREM 环境加载和逐帧绘制接口。
+ * [OUTPUT]: 提供主场景/教学场景、相机、渲染器、独立背景色、自适应超采样、双层 PMREM 环境和绘制接口。
  * [POS]: app 的 WebGL 运行时边界；集中拥有画布质量与源场景光照基线，避免场景编排直接操作底层 renderer。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -9,6 +9,7 @@ import { EXRLoader } from '../assets/EXRLoader.js?v=165';
 import { resolvePixelRatio } from './render-quality.js?v=1';
 
 const PIPELINE_FALLBACK_ASPECT = 2670 / 1878;
+const STUDIO_CAMERA_ZOOM = 1.8;
 
 export function createRenderRuntime(canvas) {
   const renderer = new THREE.WebGLRenderer({
@@ -24,7 +25,7 @@ export function createRenderRuntime(canvas) {
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(50, 1, .01, 100);
-  camera.zoom = 1.5;
+  camera.zoom = STUDIO_CAMERA_ZOOM;
 
   // 官网主体由分层 IBL 塑形；这里只保留克制的漫反射补偿，供 Three.js 的非金属材质使用。
   scene.add(new THREE.HemisphereLight(0xffffff, 0x111216, .45));
@@ -53,7 +54,7 @@ export function createRenderRuntime(canvas) {
     renderer.setSize(width, height, false);
     camera.aspect = width / height;
     // 窄屏按水平空间退让取景，避免全屏画布把模型两侧裁掉。
-    camera.zoom = 1.5 * Math.min(1, camera.aspect);
+    camera.zoom = STUDIO_CAMERA_ZOOM * Math.min(1, camera.aspect);
     camera.updateProjectionMatrix();
     const texture = pipelineMaterial.map;
     const imageAspect = texture?.image?.width && texture?.image?.height ? texture.image.width / texture.image.height : PIPELINE_FALLBACK_ASPECT;
@@ -91,5 +92,7 @@ export function createRenderRuntime(canvas) {
     return { finish, optics };
   }
 
-  return { renderer, scene, camera, pipelineMaterial, resize, setPipelineTexture, render, loadMaterialEnvironments };
+  // 背景只影响画布清屏；环境光与透明 PNG 的独立离屏目标保持不变。
+  const setBackground = (color) => renderer.setClearColor(color, 1);
+  return { renderer, scene, camera, pipelineMaterial, resize, setPipelineTexture, render, loadMaterialEnvironments, setBackground };
 }

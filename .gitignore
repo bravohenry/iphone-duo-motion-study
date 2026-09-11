@@ -1,2 +1,4 @@
-.DS_Store
 .vercel
+.DS_Store
+node_modules/
+dist/

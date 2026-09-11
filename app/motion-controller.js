@@ -1,6 +1,6 @@
 /**
- * [INPUT]: 依赖 Three.js、OrbitControls、共享产品姿态配置、Slider 动画 action、三层设备 rig 与交互控件。
- * [OUTPUT]: 提供可中断姿态过渡、手动折叠、自由视角、可选几何中心跟随和逐帧 motion 更新接口。
+ * [INPUT]: 依赖 Three.js、OrbitControls、姿态配置、Slider action、设备 rig 与状态通知回调。
+ * [OUTPUT]: 提供可中断六姿态、手动折叠、自由相机、默认居中及逐帧更新；不操作 UI DOM。
  * [POS]: app 的设备运动领域层；独占折叠/相机状态，使主循环只读取 fold 并触发 tick。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
@@ -23,7 +23,7 @@ function lerpAngle(from, to, amount) {
   return from + delta * amount;
 }
 
-export function createMotionController({ camera, canvas, slider, foldValue, foldControls, autoCenterButton, resetView, controlsElement }) {
+export function createMotionController({ camera, canvas, onChange = () => {} }) {
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   let selected = PRODUCT_STATES[0];
   let currentFold = selected.fold;
@@ -37,7 +37,7 @@ export function createMotionController({ camera, canvas, slider, foldValue, fold
   let frame;
   let orbitControls;
   let viewMode = 'mockup';
-  let autoCenter = false;
+  let previousTime = 0;
   const orbit = new THREE.Spherical();
   const productBounds = new THREE.Box3();
   const viewCenter = new THREE.Vector3();
@@ -72,9 +72,7 @@ export function createMotionController({ camera, canvas, slider, foldValue, fold
 
   function setFold(value) {
     currentFold = normalizeFold(value);
-    slider.value = String(currentFold);
-    foldValue.value = `${Math.round(currentFold * 100)}%`;
-    slider.setAttribute('aria-valuetext', `${Math.round(currentFold * 100)}% open`);
+    publish();
     if (!mixer || !sliderAction) return;
     sliderAction.enabled = true;
     sliderAction.paused = false;
@@ -90,9 +88,11 @@ export function createMotionController({ camera, canvas, slider, foldValue, fold
   }
 
   function centerForCurrentView() {
-    const shouldFollow = autoCenter && selected.interactive && (viewMode === 'mockup' || viewMode === 'demo') && productRoot;
+    const shouldFollow = (viewMode === 'mockup' || viewMode === 'demo') && productRoot;
     if (!shouldFollow) return viewCenter.copy(frame.center);
-    productRoot.updateWorldMatrix(true, true);
+    // SkinnedMesh.updateMatrixWorld 还会更新 bindMatrixInverse；普通 updateWorldMatrix
+    // 不走此钩子，首帧会用旧绑定矩阵算出偏离整机的中心，直到下一次 Reset 才恢复。
+    turntable.updateMatrixWorld(true);
     // 机身由骨骼驱动；静态 geometry bounds 会把闭合状态误判成展开宽度。
     productRoot.traverse((node) => { if (node.isSkinnedMesh) node.computeBoundingBox(); });
     productBounds.setFromObject(productRoot);
@@ -123,10 +123,8 @@ export function createMotionController({ camera, canvas, slider, foldValue, fold
     applyOrbit();
   }
 
-  function updateControls(state) {
-    controlsElement.querySelectorAll('.control').forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.state === state.id)));
-    slider.disabled = !state.interactive;
-    foldControls.hidden = !state.interactive;
+  function publish() {
+    onChange({ pose: selected.id, fold: currentFold });
   }
 
   function finishTransition(target) {
@@ -141,9 +139,10 @@ export function createMotionController({ camera, canvas, slider, foldValue, fold
   }
 
   function selectState(target) {
+    syncOrbitFromCamera();
     const from = selected;
     selected = target;
-    updateControls(target);
+    publish();
     const profile = transitionProfile(from, target);
     const duration = reducedMotion ? 0 : profile.duration;
     const targetOrbit = orbitFor(target);
@@ -152,38 +151,18 @@ export function createMotionController({ camera, canvas, slider, foldValue, fold
     if (duration === 0) finishTransition(target);
   }
 
-  PRODUCT_STATES.forEach((state) => {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'control';
-    button.dataset.state = state.id;
-    button.setAttribute('aria-pressed', String(state === selected));
-    button.textContent = state.label;
-    button.addEventListener('click', () => selectState(state));
-    controlsElement.append(button);
-  });
-
-  slider.addEventListener('input', (event) => {
+  function scrub(value) {
     if (!selected.interactive) return;
     transition = null;
-    setFold(event.target.value);
-    if (autoCenter) {
-      syncOrbitFromCamera();
-      applyOrbit();
-    }
-  });
-
-  autoCenterButton.addEventListener('click', () => {
+    setFold(value);
     syncOrbitFromCamera();
-    autoCenter = !autoCenter;
-    autoCenterButton.setAttribute('aria-pressed', String(autoCenter));
-    if (autoCenter) applyOrbit();
-  });
+    applyOrbit();
+  }
 
   const revealFreeView = () => { transition = null; };
   canvas.addEventListener('pointerdown', revealFreeView);
   canvas.addEventListener('wheel', revealFreeView, { passive: true });
-  resetView.addEventListener('click', () => { transition = null; applyView(selected); });
+  function resetView() { transition = null; applyView(selected); }
 
   function attachModel(model) {
     ({ mixer, sliderAction, turntable, poseRig, accentRig, productRoot, frame } = model);
@@ -210,33 +189,37 @@ export function createMotionController({ camera, canvas, slider, foldValue, fold
       setFold(selected.fold);
       applyView(selected);
     }
+    publish();
   }
 
   function showPipelineDevice() {
     if (!frame) return;
     setFold(.72);
     Object.assign(orbit, DEFAULT_ORBIT);
-    setRigState(PRODUCT_STATES[0]);
+    setRigState(PRODUCT_STATES.find((state) => state.id === 'foldable'));
     applyOrbit();
   }
 
   function tick(now) {
+    const delta = previousTime ? Math.min((now - previousTime) / 1000, .05) : 0;
+    previousTime = now;
     if (transition) {
       const elapsed = transition.duration === 0 ? 1 : Math.min(1, (now - transition.start) / transition.duration);
       const progress = transition.easing(elapsed);
       setFold(THREE.MathUtils.lerp(transition.fromFold, transition.target.fold, progress));
+      // 先更新机身再算几何中心，让姿态过渡中的目标点与本帧骨骼保持同步。
+      interpolateTransform(turntable, transition.fromRig.primary, transition.targetRig.primary, progress);
+      interpolateTransform(poseRig, transition.fromRig.pose, transition.targetRig.pose, progress);
+      interpolateTransform(accentRig, transition.fromRig.accent, transition.targetRig.accent, progress);
       if (transition.targetOrbit) {
         orbit.radius = THREE.MathUtils.lerp(transition.fromOrbit.radius, transition.targetOrbit.radius, progress);
         orbit.phi = THREE.MathUtils.lerp(transition.fromOrbit.phi, transition.targetOrbit.phi, progress);
         orbit.theta = lerpAngle(transition.fromOrbit.theta, transition.targetOrbit.theta, progress);
         applyOrbit();
       }
-      interpolateTransform(turntable, transition.fromRig.primary, transition.targetRig.primary, progress);
-      interpolateTransform(poseRig, transition.fromRig.pose, transition.targetRig.pose, progress);
-      interpolateTransform(accentRig, transition.fromRig.accent, transition.targetRig.accent, progress);
       if (elapsed === 1) finishTransition(transition.target);
     }
-    orbitControls?.update();
+    orbitControls?.update(delta);
   }
 
   return {
@@ -245,6 +228,14 @@ export function createMotionController({ camera, canvas, slider, foldValue, fold
     showPipelineDevice,
     tick,
     getFold: () => currentFold,
+    selectPose: (id) => { const target = PRODUCT_STATES.find((state) => state.id === id); if (target && frame) selectState(target); },
+    scrub,
+    resetView,
+    dispose: () => {
+      orbitControls?.dispose();
+      canvas.removeEventListener('pointerdown', revealFreeView);
+      canvas.removeEventListener('wheel', revealFreeView);
+    },
     updateOrbitControls: () => orbitControls?.update(),
   };
 }

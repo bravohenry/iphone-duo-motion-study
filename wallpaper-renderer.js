@@ -1,7 +1,7 @@
 /**
  * [INPUT]: 依赖 Three.js、KTX2/EXR/glTF 加载器、Apple 公开交付的五层壁纸资源与从目标 bundle 提取的 GLSL。
- * [OUTPUT]: 提供 createDeviceWallpaperRenderer、内外屏动态纹理、逐阶段调试纹理与可控壁纸层数。
- * [POS]: iphone-duo-motion-study 的屏幕渲染子系统；处理壁纸、UI、FramePass、两遍 Wipe blur、教学阶段输出与设备局部投影。
+ * [OUTPUT]: 提供 createDeviceWallpaperRenderer、内外屏动态/自定义图片纹理、逐阶段调试纹理与可控壁纸层数。
+ * [POS]: iphone-duo-motion-study 的屏幕渲染子系统；处理壁纸、用户图片裁切、FramePass、两遍 Wipe blur、教学阶段输出与设备局部投影。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import * as THREE from './assets/three.module.min.js?v=165';
@@ -207,6 +207,7 @@ export async function createDeviceWallpaperRenderer(renderer) {
   const uiTargets = {};
   const frameTargets = {};
   const blurTargets = {};
+  const customScreens = {};
   for (const mode of ['inner', 'outer']) {
     const crop = screenCrop(mode);
     const width = Math.max(1, Math.round(TARGET_SIZE[0] * crop[0]));
@@ -216,6 +217,23 @@ export async function createDeviceWallpaperRenderer(renderer) {
     uiTargets[mode].depthBuffer = false;
     frameTargets[mode] = createTarget(width, height, true);
     blurTargets[mode] = createTarget(width, height, true);
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.minFilter = THREE.LinearFilter;
+    customScreens[mode] = {
+      canvas,
+      context: canvas.getContext('2d'),
+      texture,
+      image: null,
+      fit: 'cover',
+      zoom: 1,
+      x: 0,
+      y: 0,
+      dirty: false
+    };
   }
 
   const gltfLoader = new GLTFLoader();
@@ -278,6 +296,7 @@ export async function createDeviceWallpaperRenderer(renderer) {
     depthTest: false, depthWrite: false,
     uniforms: { wallpaperMap: { value: wallpaperTarget.texture }, uiMap: { value: uiTextures.inner }, wallpaperUvScale: { value: new THREE.Vector2(1, 1) }, uiUvScale: { value: new THREE.Vector2(1, 1) } }
   });
+  const customMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, map: null, toneMapped: false, depthTest: false, depthWrite: false });
   screenQuad.material = uiMaterial;
   const blurMaterial = new THREE.RawShaderMaterial({
     name: 'SourceWipeBlurPass', glslVersion: THREE.GLSL3, vertexShader: blurVertex, fragmentShader: blurFragment,
@@ -305,13 +324,20 @@ export async function createDeviceWallpaperRenderer(renderer) {
   function renderScreen(mode) {
     const target = screenTargets[mode];
     const crop = screenCrop(mode);
-    const uiTexture = uiTextures[mode];
-    const uiAspect = uiTexture.image.width / uiTexture.image.height;
-    const fit = (target.width / target.height) / uiAspect;
-    uiMaterial.uniforms.wallpaperUvScale.value.fromArray(crop);
-    uiMaterial.uniforms.uiUvScale.value.set(Math.max(fit, 1) * UI_OVERSCAN, Math.max(1 / fit, 1) * UI_OVERSCAN);
-    uiMaterial.uniforms.uiMap.value = uiTexture;
-    screenQuad.material = uiMaterial;
+    const custom = customScreens[mode];
+    if (custom.image) {
+      if (custom.dirty) drawCustomScreen(mode);
+      customMaterial.map = custom.texture;
+      screenQuad.material = customMaterial;
+    } else {
+      const uiTexture = uiTextures[mode];
+      const uiAspect = uiTexture.image.width / uiTexture.image.height;
+      const fit = (target.width / target.height) / uiAspect;
+      uiMaterial.uniforms.wallpaperUvScale.value.fromArray(crop);
+      uiMaterial.uniforms.uiUvScale.value.set(Math.max(fit, 1) * UI_OVERSCAN, Math.max(1 / fit, 1) * UI_OVERSCAN);
+      uiMaterial.uniforms.uiMap.value = uiTexture;
+      screenQuad.material = uiMaterial;
+    }
     renderer.setRenderTarget(uiTargets[mode]);
     renderer.setClearColor(0x000000, 0);
     renderer.clear();
@@ -335,6 +361,33 @@ export async function createDeviceWallpaperRenderer(renderer) {
     renderer.setRenderTarget(target);
     renderer.clear();
     renderer.render(blurScene, screenCamera);
+  }
+
+  function drawCustomScreen(mode) {
+    const screen = customScreens[mode];
+    const { canvas, context, image } = screen;
+    if (!image) return;
+    const imageWidth = image.naturalWidth || image.width;
+    const imageHeight = image.naturalHeight || image.height;
+    const baseScale = screen.fit === 'contain'
+      ? Math.min(canvas.width / imageWidth, canvas.height / imageHeight)
+      : Math.max(canvas.width / imageWidth, canvas.height / imageHeight);
+    const scale = baseScale * screen.zoom;
+    const width = imageWidth * scale;
+    const height = imageHeight * scale;
+    const travelX = Math.max(canvas.width * .35, Math.abs(width - canvas.width) / 2);
+    const travelY = Math.max(canvas.height * .35, Math.abs(height - canvas.height) / 2);
+    const left = (canvas.width - width) / 2 + screen.x * travelX;
+    const top = (canvas.height - height) / 2 + screen.y * travelY;
+    context.save();
+    context.fillStyle = '#000';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = 'high';
+    context.drawImage(image, left, top, width, height);
+    context.restore();
+    screen.texture.needsUpdate = true;
+    screen.dirty = false;
   }
 
   function installScreen(node, mode) {
@@ -403,6 +456,28 @@ export async function createDeviceWallpaperRenderer(renderer) {
     },
     setLayerCount(count) {
       materials.forEach((material, index) => { material.visible = index < count; });
+    },
+    setCustomImage(image, modes = ['inner', 'outer']) {
+      modes.forEach((mode) => {
+        customScreens[mode].image = image;
+        customScreens[mode].dirty = true;
+      });
+    },
+    clearCustomImage(modes = ['inner', 'outer']) {
+      modes.forEach((mode) => {
+        customScreens[mode].image = null;
+        customScreens[mode].dirty = false;
+      });
+    },
+    setCustomOptions(options, modes = ['inner', 'outer']) {
+      modes.forEach((mode) => {
+        Object.assign(customScreens[mode], options);
+        customScreens[mode].dirty = true;
+      });
+    },
+    getCustomOptions(mode = 'inner') {
+      const { fit, zoom, x, y, image } = customScreens[mode];
+      return { fit, zoom, x, y, hasImage: Boolean(image) };
     },
     installScreen,
     render() {

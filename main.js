@@ -1,33 +1,37 @@
 /**
- * [INPUT]: 依赖 three.module、GLTFLoader、OrbitControls、wallpaper-renderer 与 apple-product-viewer 的 Slider/Intro clips、EXR 和设备模型。
- * [OUTPUT]: 驱动产品演示、可逆模型爆炸和逐阶段 WebGL 教学，并复用同一设备与壁纸管线。
- * [POS]: iphone-duo-motion-study 的教学编排层；管理三段式页面、姿态/视角、爆炸矩阵和管线预览。
+ * [INPUT]: 依赖 three.module、GLTFLoader、OrbitControls、wallpaper-renderer 与 apple-product-viewer 的 Slider clip、EXR 和设备模型。
+ * [OUTPUT]: 驱动自定义图片 mockup、产品演示、手动折叠控制和逐阶段 WebGL 教学，并复用同一设备与屏幕管线。
+ * [POS]: iphone-duo-motion-study 的交互编排层；管理图片导入/裁切、三种视图、姿态/自由视角和管线预览。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import * as THREE from './assets/three.module.min.js?v=165';
 import { GLTFLoader } from './assets/GLTFLoader.js?v=165';
 import { OrbitControls } from './assets/OrbitControls.js?v=165';
 import { EXRLoader } from './assets/EXRLoader.js?v=165';
-import { createDeviceWallpaperRenderer } from './wallpaper-renderer.js?v=22';
+import { createDeviceWallpaperRenderer } from './wallpaper-renderer.js?v=23';
 
 const CLIP_SECONDS = 2;
 const PASSES_LAYER_COUNT = 5;
 const canvas = document.querySelector('#webgl');
 const slider = document.querySelector('#fold');
 const foldValue = document.querySelector('#fold-value');
-const replay = document.querySelector('#replay');
 const resetView = document.querySelector('#reset-view');
 const foldControls = document.querySelector('#fold-controls');
 const status = document.querySelector('#status');
 const controls = document.querySelector('#controls');
 const demoPanel = document.querySelector('.panel');
-const anatomyPanel = document.querySelector('#anatomy-panel');
-const explodeToggle = document.querySelector('#explode-toggle');
-const explodeSlider = document.querySelector('#explode');
-const anatomyLabel = document.querySelector('#anatomy-label');
 const pipelinePanel = document.querySelector('#pipeline-panel');
 const pipelineStagesElement = document.querySelector('#pipeline-stages');
 const stageDescription = document.querySelector('#stage-description');
+const mockupPanel = document.querySelector('#mockup-panel');
+const mockupFile = document.querySelector('#mockup-file');
+const mockupDrop = document.querySelector('#mockup-drop');
+const mockupClear = document.querySelector('#mockup-clear');
+const mockupTargets = [...document.querySelectorAll('#mockup-targets button')];
+const mockupFit = document.querySelector('#mockup-fit');
+const mockupZoom = document.querySelector('#mockup-zoom');
+const mockupX = document.querySelector('#mockup-x');
+const mockupY = document.querySelector('#mockup-y');
 const lessonTabs = [...document.querySelectorAll('.lesson-tab')];
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -57,21 +61,17 @@ let currentFold = selected.fold;
 let transition = null;
 let mixer;
 let sliderAction;
-let introAction;
-let replayRun = 0;
 let frame;
 let turntable;
 let poseRig;
 let accentRig;
 let productRoot;
 let wallpaperRenderer;
-let viewMode = 'demo';
-let explosion = 0;
-let explosionTarget = 0;
-let explosionEased = 0;
-let explosionParts = [];
+let viewMode = 'mockup';
+let mockupTarget = 'both';
+const mockupImages = { inner: null, outer: null };
+const mockupNames = { inner: '', outer: '' };
 let selectedPipelineStage = pipelineStages[0];
-let previousFrameTime = performance.now();
 const orbit = new THREE.Spherical();
 let orbitControls;
 
@@ -140,55 +140,6 @@ function setFold(value) {
   sliderAction.paused = true;
 }
 
-function buildExplosionMap(root) {
-  explosionParts = [];
-  root.traverse((node) => {
-    if (!node.isMesh || !node.geometry) return;
-    node.geometry.computeBoundingBox();
-    const box = node.geometry.boundingBox;
-    const center = box.getCenter(new THREE.Vector3());
-    const extent = box.getSize(new THREE.Vector3());
-    const isInner = node.name === 'skeleton_0_3_screenTexture_geo';
-    const isOuter = node.name === 'skeleton_0_7_outerDisplayScreenTexture_geo';
-    // 屏幕贴图是讲解坐标基准，不参与爆炸；拆的是它上下方的真实结构件。
-    if (isInner || isOuter) {
-      explosionParts.push({ node, offset: new THREE.Vector3() });
-      return;
-    }
-
-    const footprint = Math.max(extent.x, extent.z);
-    const isDetail = footprint < 2.6;
-    const isPanel = extent.x > 5.2 && extent.z > 8;
-    const side = Math.abs(center.x) < .5 ? 0 : Math.sign(center.x);
-    const vertical = Math.abs(center.z) < 1 ? 0 : Math.sign(center.z);
-    const layer = THREE.MathUtils.clamp((center.y + .28) * 8.5, -5, 5);
-    const offset = isPanel
-      ? new THREE.Vector3(layer * 1.2, vertical * .35, layer * .8)
-      : new THREE.Vector3(layer * .85 + side * (isDetail ? 4 : 1.4), vertical * (isDetail ? 2.8 : .8), layer * .65);
-    node.userData.explosionOffsetWorld = offset;
-    const previousRender = node.onBeforeRender;
-    node.onBeforeRender = function onBeforeExplodedPart(...args) {
-      previousRender?.apply(this, args);
-      const worldOffset = this.userData.explosionOffsetWorld;
-      if (!worldOffset || explosionEased === 0) return;
-      this.matrixWorld.elements[12] += worldOffset.x * explosionEased;
-      this.matrixWorld.elements[13] += worldOffset.y * explosionEased;
-      this.matrixWorld.elements[14] += worldOffset.z * explosionEased;
-    };
-    explosionParts.push({ node, offset });
-  });
-}
-
-function applyExplosion(value) {
-  explosion = normalizeFold(value);
-  const eased = explosion * explosion * (3 - 2 * explosion);
-  explosionEased = eased;
-  explodeSlider.value = String(explosion);
-  anatomyLabel.value = explosion < .01 ? 'Assembled' : `${Math.round(explosion * 100)}% exploded`;
-  explodeToggle.setAttribute('aria-pressed', String(explosionTarget > .5));
-  explodeToggle.textContent = explosionTarget > .5 ? 'Assemble model' : 'Explode model';
-}
-
 function selectPipelineStage(stage) {
   selectedPipelineStage = stage;
   pipelineStagesElement.querySelectorAll('.pipeline-stage').forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.stage === stage.id)));
@@ -211,47 +162,22 @@ function selectPipelineStage(stage) {
 
 function setViewMode(mode) {
   viewMode = mode;
-  scene.background = mode === 'anatomy' ? new THREE.Color(0xe4e4e7) : null;
+  scene.background = null;
+  if (orbitControls) {
+    orbitControls.minPolarAngle = mode === 'mockup' ? .08 : 1.1519173063162575;
+    orbitControls.maxPolarAngle = mode === 'mockup' ? Math.PI - .08 : 2.0943951023931953;
+    orbitControls.enablePan = true;
+  }
   lessonTabs.forEach((tab) => tab.setAttribute('aria-selected', String(tab.dataset.view === mode)));
-  demoPanel.hidden = mode !== 'demo';
-  anatomyPanel.hidden = mode !== 'anatomy';
+  demoPanel.hidden = mode !== 'demo' && mode !== 'mockup';
+  mockupPanel.hidden = mode !== 'mockup';
   pipelinePanel.hidden = mode !== 'pipeline';
   if (productRoot) productRoot.visible = mode !== 'pipeline' || Boolean(selectedPipelineStage.device);
-  if (mode === 'demo') {
+  if (mode === 'demo' || mode === 'mockup') {
     wallpaperRenderer?.setLayerCount(PASSES_LAYER_COUNT);
-    explosionTarget = 0;
-    applyExplosion(0);
     setFold(selected.fold);
     applyView(selected);
-  } else if (mode === 'anatomy') {
-    wallpaperRenderer?.setLayerCount(PASSES_LAYER_COUNT);
-    transition = null;
-    setFold(1);
-    setRigState(states[1]);
-    // 斜向观察装配轴，否则沿屏幕法线分层的零件会在正视图中互相遮挡。
-    Object.assign(orbit, { radius: 48, phi: 1.31, theta: Math.PI * 1.22 });
-    applyOrbit();
-  } else {
-    explosionTarget = 0;
-    applyExplosion(0);
-    selectPipelineStage(selectedPipelineStage);
-  }
-}
-
-function updateFoldReadout(value) {
-  currentFold = normalizeFold(value);
-  slider.value = String(currentFold);
-  foldValue.value = `${Math.round(currentFold * 100)}%`;
-  slider.setAttribute('aria-valuetext', `${Math.round(currentFold * 100)}% open`);
-}
-
-function restoreSliderTimeline(value) {
-  mixer.stopAllAction();
-  mixer.setTime(0);
-  sliderAction.reset().setLoop(THREE.LoopOnce, 1).play();
-  sliderAction.clampWhenFinished = true;
-  sliderAction.paused = true;
-  setFold(value);
+  } else selectPipelineStage(selectedPipelineStage);
 }
 
 function installDynamicScreens(root, dynamicWallpaper) {
@@ -333,7 +259,6 @@ function interpolateTransform(rig, from, to, amount) {
 function updateControls(state) {
   controls.querySelectorAll('.control').forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.state === state.id)));
   slider.disabled = !state.interactive;
-  replay.disabled = !state.interactive;
   foldControls.hidden = !state.interactive;
 }
 
@@ -344,8 +269,6 @@ function finishTransition(target) {
 }
 
 function selectState(target) {
-  replayRun += 1;
-  if (introAction?.isRunning()) restoreSliderTimeline(currentFold);
   selected = target;
   updateControls(target);
   const duration = reducedMotion ? 0 : 620;
@@ -362,12 +285,6 @@ function lerpAngle(from, to, amount) {
   return from + delta * amount;
 }
 function tick(now) {
-  const deltaSeconds = Math.min(.05, (now - previousFrameTime) / 1000);
-  previousFrameTime = now;
-  if (Math.abs(explosionTarget - explosion) > .001) {
-    const next = reducedMotion ? explosionTarget : THREE.MathUtils.damp(explosion, explosionTarget, 8, deltaSeconds);
-    applyExplosion(Math.abs(explosionTarget - next) < .002 ? explosionTarget : next);
-  }
   if (transition) {
     const elapsed = transition.duration === 0 ? 1 : Math.min(1, (now - transition.start) / transition.duration);
     const progress = easeOutCubic(elapsed);
@@ -420,32 +337,6 @@ slider.addEventListener('input', (event) => {
   setFold(event.target.value);
 });
 
-replay.addEventListener('click', () => {
-  if (!selected.interactive || !mixer || !introAction) return;
-  transition = null;
-  const run = ++replayRun;
-  replay.disabled = true;
-  slider.disabled = true;
-  mixer.stopAllAction();
-  mixer.setTime(0);
-  introAction.reset().setLoop(THREE.LoopOnce, 1).play();
-  introAction.clampWhenFinished = true;
-  const start = performance.now();
-  const animateIntro = (now) => {
-    if (run !== replayRun) return;
-    const progress = Math.min(1, (now - start) / (CLIP_SECONDS * 1000));
-    updateFoldReadout(progress);
-    mixer.setTime(progress * CLIP_SECONDS);
-    if (progress < 1) requestAnimationFrame(animateIntro);
-    else {
-      restoreSliderTimeline(states[0].fold);
-      replay.disabled = false;
-      slider.disabled = false;
-    }
-  };
-  requestAnimationFrame(animateIntro);
-});
-
 function revealFreeView() {
   transition = null;
 }
@@ -455,15 +346,102 @@ canvas.addEventListener('wheel', revealFreeView, { passive: true });
 
 resetView.addEventListener('click', () => {
   transition = null;
-  if (viewMode === 'anatomy') {
-    Object.assign(orbit, { radius: 48, phi: 1.31, theta: Math.PI * 1.22 });
-    applyOrbit();
-  } else applyView(selected);
+  applyView(selected);
 });
 
 lessonTabs.forEach((tab) => tab.addEventListener('click', () => setViewMode(tab.dataset.view)));
-explodeToggle.addEventListener('click', () => { explosionTarget = explosionTarget > .5 ? 0 : 1; });
-explodeSlider.addEventListener('input', (event) => { explosionTarget = Number(event.target.value); applyExplosion(explosionTarget); });
+
+function targetModes(target = mockupTarget) {
+  return target === 'both' ? ['inner', 'outer'] : [target];
+}
+
+function currentMockupOptions() {
+  return { fit: mockupFit.value, zoom: Number(mockupZoom.value), x: Number(mockupX.value), y: Number(mockupY.value) };
+}
+
+function applyMockupOptions() {
+  wallpaperRenderer?.setCustomOptions(currentMockupOptions(), targetModes());
+}
+
+function syncMockupControls() {
+  const mode = mockupTarget === 'outer' ? 'outer' : 'inner';
+  const options = wallpaperRenderer?.getCustomOptions(mode) || { fit: 'cover', zoom: 1, x: 0, y: 0 };
+  mockupFit.value = options.fit;
+  mockupZoom.value = String(options.zoom);
+  mockupX.value = String(options.x);
+  mockupY.value = String(options.y);
+  updateMockupDropLabel();
+}
+
+function updateMockupDropLabel() {
+  const modes = targetModes();
+  const names = [...new Set(modes.map((mode) => mockupNames[mode]).filter(Boolean))];
+  const title = names.length === 1 ? names[0] : names.length > 1 ? 'Different images' : 'Choose an image';
+  const detail = names.length ? 'drop another to replace' : 'or drop PNG, JPG, WebP or AVIF';
+  mockupDrop.querySelector('strong').textContent = title;
+  mockupDrop.querySelector('span').textContent = detail;
+}
+
+async function loadMockupFile(file) {
+  if (!file?.type.startsWith('image/')) {
+    status.textContent = 'Choose a PNG, JPG, WebP or AVIF image.';
+    status.hidden = false;
+    return;
+  }
+  if (file.size > 40 * 1024 * 1024) {
+    status.textContent = 'Choose an image smaller than 40 MB.';
+    status.hidden = false;
+    return;
+  }
+  const url = URL.createObjectURL(file);
+  const image = new Image();
+  image.decoding = 'async';
+  image.src = url;
+  try {
+    await image.decode();
+    const modes = targetModes();
+    modes.forEach((mode) => { mockupImages[mode] = image; mockupNames[mode] = file.name; });
+    wallpaperRenderer?.setCustomImage(image, modes);
+    applyMockupOptions();
+    updateMockupDropLabel();
+    mockupDrop.querySelector('span').textContent = `${image.naturalWidth} × ${image.naturalHeight} · drop another to replace`;
+    status.hidden = true;
+  } catch {
+    status.textContent = 'This image could not be decoded.';
+    status.hidden = false;
+  } finally {
+    URL.revokeObjectURL(url);
+    mockupFile.value = '';
+  }
+}
+
+mockupFile.addEventListener('change', () => loadMockupFile(mockupFile.files[0]));
+mockupDrop.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); mockupFile.click(); }
+});
+['dragenter', 'dragover'].forEach((type) => addEventListener(type, (event) => {
+  if (viewMode !== 'mockup') return;
+  event.preventDefault();
+  mockupDrop.dataset.active = 'true';
+}));
+['dragleave', 'drop'].forEach((type) => addEventListener(type, (event) => {
+  if (viewMode !== 'mockup') return;
+  event.preventDefault();
+  mockupDrop.dataset.active = 'false';
+  if (type === 'drop') loadMockupFile(event.dataTransfer?.files[0]);
+}));
+mockupTargets.forEach((button) => button.addEventListener('click', () => {
+  mockupTarget = button.dataset.target;
+  mockupTargets.forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+  syncMockupControls();
+}));
+[mockupFit, mockupZoom, mockupX, mockupY].forEach((control) => control.addEventListener('input', applyMockupOptions));
+mockupClear.addEventListener('click', () => {
+  const modes = targetModes();
+  wallpaperRenderer?.clearCustomImage(modes);
+  modes.forEach((mode) => { mockupImages[mode] = null; mockupNames[mode] = ''; });
+  updateMockupDropLabel();
+});
 
 new GLTFLoader().load('./assets/apple-product-viewer/product-viewer.gltf', (gltf) => {
   productRoot = gltf.scene;
@@ -482,18 +460,15 @@ new GLTFLoader().load('./assets/apple-product-viewer/product-viewer.gltf', (gltf
   scene.add(turntable);
   mixer = new THREE.AnimationMixer(gltf.scene);
   sliderAction = mixer.clipAction(THREE.AnimationClip.findByName(gltf.animations, 'Slider'));
-  introAction = mixer.clipAction(THREE.AnimationClip.findByName(gltf.animations, 'Intro'));
   // Slider 默认使用 LoopRepeat；恰好采样到 2s 时会取模回到第 0 帧。
   // 折叠滑杆表达有限区间而非循环时间轴，因此必须把末帧钳制为稳定状态。
   sliderAction.setLoop(THREE.LoopOnce, 1);
   sliderAction.clampWhenFinished = true;
   sliderAction.play();
   sliderAction.paused = true;
-  introAction.stop();
   const bounds = new THREE.Box3().setFromObject(gltf.scene);
   const size = bounds.getSize(new THREE.Vector3());
   frame = { center: bounds.getCenter(new THREE.Vector3()), distance: Math.max(size.x, size.y, size.z) * .9 };
-  buildExplosionMap(gltf.scene);
   orbitControls = new OrbitControls(camera, canvas);
   orbitControls.enableDamping = true;
   orbitControls.dampingFactor = .18;
@@ -517,6 +492,8 @@ new GLTFLoader().load('./assets/apple-product-viewer/product-viewer.gltf', (gltf
 createDeviceWallpaperRenderer(renderer).then((instance) => {
   wallpaperRenderer = instance;
   wallpaperRenderer.setLayerCount(viewMode === 'pipeline' ? selectedPipelineStage.layers : PASSES_LAYER_COUNT);
+  Object.entries(mockupImages).forEach(([mode, image]) => { if (image) wallpaperRenderer.setCustomImage(image, [mode]); });
+  applyMockupOptions();
   if (productRoot) installDynamicScreens(productRoot, wallpaperRenderer);
 }).catch((error) => {
   console.error('Dynamic wallpaper failed to load; screens remain unlit.', error);

@@ -1,4 +1,4 @@
-# QA report — 2026-09-10
+# QA report — 2026-09-11
 
 ## Checks
 
@@ -13,8 +13,7 @@
 
 ## Teaching views
 
-- Product Demo, Device Anatomy and WebGL Pipeline switch through one segmented control and reuse one model/renderer instance.
-- Device Anatomy was checked assembled, fully exploded and assembled again. Exterior parts separate through render-time world-matrix offsets, so the glTF skin does not cancel the teaching transform; returning to Product Demo restores the selected fold value and complete five-layer wallpaper.
+- Mockup, Product Demo and WebGL Pipeline switch through one segmented control and reuse one model/renderer instance.
 - WebGL stages Sky, Stars, Hills, Dunes, UI, Frame, Blur and Wipe were selected in the live browser. The first seven show their corresponding render targets; Wipe returns to the live folding mesh with the local blur/shadow projection.
 - Browser error/warning logs were empty after switching among all three views.
 
@@ -22,11 +21,18 @@
 
 The requested no-image handoff condition is met: all seven named states render through the one canvas model. The retained static pose images have no runtime display path.
 
+## Mockup workspace
+
+- Local PNG, JPG, WebP and AVIF files were imported through the picker and rendered on both model screens without console errors.
+- Cover/Contain, zoom and two-axis image positioning update the offscreen canvas input before Frame, blur and Wipe passes.
+- Both, Inner and Outer target modes keep separate image and crop state; Clear only resets the selected target.
+- Mockup keeps the fold slider and all seven pose presets visible. Pointer orbit was verified beyond the source viewer's original polar limits; wheel zoom and right-drag pan remain enabled.
+
 ## Full-window controls — current UI check
 
 - Verified in the existing in-app browser using its Playwright/AX interface at 1447×998 and 390×844. Canvas bounds equal the viewport; there is no page overflow.
 - Removed research heading, state descriptions, usage instructions, technical footer and runtime-ready messages. Visible text is limited to pose labels and the active fold percentage.
-- Standing selection hides the unavailable fold/replay controls; returning to Foldable restores them. The accessible range reaches 100% and keeps the model open.
+- Standing selection hides the unavailable fold slider; returning to Foldable restores it. The accessible range reaches 100% and keeps the model open.
 - Narrow viewports reduce camera zoom so the model remains fully visible, while the pose dock wraps within the window. The viewport override was reset after checking.
 - Page identity, rendered model, screenshots and interaction state passed; current browser error/warning logs were empty.
 - This check validates layout and controls, not exact Apple screen-content or material parity. Existing screen-content orientation still needs separate calibration.
@@ -37,16 +43,10 @@ The requested no-image handoff condition is met: all seven named states render t
 - Source, generated bundle and manifest contain no references to those images. Screen binding now accepts only dynamic render targets and stays unlit while they load.
 - Refreshed the local preview: the dynamic screen still renders, Standing remains selectable, and current error/warning logs are empty. JavaScript syntax and manifest parsing passed.
 
-## Replay timeline
+## Fold controls
 
-- Root cause: `Intro` and `Slider` each target the same 27 model nodes through 81 channels. The previous replay activated both actions and called `setFold()` on every frame, re-enabling Slider while Intro was running and blending incompatible hardware transforms.
-- Replay now gives Intro exclusive mixer ownership, updates the fold readout without sampling Slider, blocks repeated playback, then restores the paused Slider timeline at 33%.
-- Live verification captured intact early and unfolding frames, followed by a stable interactive 33% end state. Replay was disabled during the two-second run and re-enabled afterward; browser error/warning logs were empty.
-
-## Intro playback isolation
-
-- `Intro` and `Slider` each contain 81 tracks targeting the same 27 model nodes. Playback now stops every active mixer action before starting `Intro`, updates only its clock during the two-second replay, and restores the paused `Slider` timeline at the default fold value afterward.
-- Replay and slider controls are disabled while `Intro` owns the skeleton, preventing concurrent replay loops and scrub input.
+- Removed the one-shot `Intro` playback path and its play button. The delivered `Slider` clip is now sampled only by the manual range control and pose transitions, eliminating competing animation timelines.
+- Removed Device Anatomy and its exploded-mesh render hooks. The current UI exposes only Mockup, Product Demo and WebGL Pipeline.
 
 ## Wipe projection and blur — current UI check
 

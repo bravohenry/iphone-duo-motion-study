@@ -1,7 +1,7 @@
 <!--
   [INPUT]: 依赖 main.js 的交互状态机、wallpaper-renderer.js 的屏幕像素管线，以及原始设备/壁纸资源。
-  [OUTPUT]: 提供 Product Demo、Device Anatomy、WebGL Pipeline 三段式教学入口、GitHub 仓库入口及各自控件。
-  [POS]: 当前研究交付的教学入口；共享一个 WebGL 画布，以 segment control 切换产品演示、模型爆炸和渲染管线。
+  [OUTPUT]: 提供可上传图片的 Mockup 工作区、Product Demo、WebGL Pipeline、GitHub 仓库入口及各自控件。
+  [POS]: 当前研究交付的主入口；共享一个 WebGL 画布，以 segment control 切换屏幕 mockup、产品演示和渲染管线。
   [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
 <!doctype html>
@@ -39,8 +39,6 @@
       @media (hover:hover) { .control:not([aria-pressed="true"]):hover,.icon-button:hover { color:var(--ink); background:#00000008; } }
       #status { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); max-width:calc(100% - 48px); margin:0; padding:12px 16px; border-radius:16px; text-align:center; }
       .lesson-panel { position:absolute; z-index:2; left:50%; bottom:max(24px,env(safe-area-inset-bottom)); transform:translateX(-50%); display:flex; align-items:center; gap:12px; padding:8px; border-radius:999px; }
-      .primary-action { min-height:40px; border:0; border-radius:999px; padding:10px 18px; color:#fff; background:var(--ink); cursor:pointer; }
-      .lesson-range { width:min(260px,35vw); accent-color:var(--blue); }
       #pipeline-panel { left:max(24px,env(safe-area-inset-left)); top:104px; bottom:auto; transform:none; width:270px; align-items:stretch; flex-direction:column; border-radius:24px; padding:14px; }
       #pipeline-panel h2 { margin:2px 4px 3px; font-size:17px; }
       #pipeline-panel p { margin:0 4px 8px; color:var(--muted); font-size:12px; }
@@ -48,8 +46,23 @@
       .pipeline-stage { min-height:36px; border:0; border-radius:12px; padding:8px 10px; color:var(--muted); background:#fff8; text-align:left; cursor:pointer; }
       .pipeline-stage[aria-pressed="true"] { color:#fff; background:var(--ink); }
       #stage-description { min-height:48px; padding-top:7px; border-top:1px solid #0001; }
-      #anatomy-label { min-width:82px; color:var(--muted); font-size:12px; }
-      @media (max-width:700px) { .panel,.lesson-panel { bottom:max(16px,env(safe-area-inset-bottom)); gap:8px; } #controls { gap:2px; padding:5px; border-radius:22px; } .control { min-height:40px; padding:10px 12px; font-size:12px; } #reset-view { top:max(76px,env(safe-area-inset-top) + 52px); right:max(16px,env(safe-area-inset-right)); } #github-link { top:max(76px,env(safe-area-inset-top) + 52px); right:max(68px,env(safe-area-inset-right) + 52px); } #lesson-switcher { top:max(12px,env(safe-area-inset-top)); } .lesson-tab { padding:8px 10px; font-size:12px; } #pipeline-panel { top:72px; left:12px; width:min(250px,calc(100% - 24px)); } .lesson-range { width:32vw; } }
+      #mockup-panel { left:max(24px,env(safe-area-inset-left)); top:104px; bottom:auto; transform:none; width:286px; align-items:stretch; flex-direction:column; border-radius:24px; padding:14px; gap:12px; }
+      .mockup-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+      .mockup-heading h2 { margin:0 4px; font-size:17px; }
+      .text-button { border:0; padding:6px 8px; color:var(--muted); background:transparent; cursor:pointer; }
+      #mockup-drop { display:grid; place-items:center; min-height:104px; padding:16px; border:1px dashed #0002; border-radius:16px; background:#fff9; text-align:center; cursor:pointer; transition:border-color 160ms ease,background 160ms ease; }
+      #mockup-drop[data-active="true"] { border-color:var(--blue); background:#eaf4ff; }
+      #mockup-drop strong { display:block; margin-bottom:4px; font-size:13px; }
+      #mockup-drop span { color:var(--muted); font-size:11px; }
+      .mockup-segment { display:grid; grid-template-columns:repeat(3,1fr); gap:3px; padding:3px; border-radius:12px; background:#00000008; }
+      .mockup-segment button { min-height:32px; border:0; border-radius:9px; color:var(--muted); background:transparent; cursor:pointer; }
+      .mockup-segment button[aria-pressed="true"] { color:var(--ink); background:#fff; box-shadow:0 1px 4px #0002; }
+      .mockup-row { display:grid; grid-template-columns:54px 1fr; align-items:center; gap:10px; color:var(--muted); font-size:12px; }
+      .mockup-row input[type="range"] { width:100%; min-width:0; accent-color:var(--blue); }
+      .mockup-row select { width:100%; min-height:34px; padding:0 9px; border:1px solid #0001; border-radius:10px; background:#fff; color:var(--ink); }
+      .mockup-hint { margin:0 4px; color:var(--muted); font-size:11px; text-align:center; }
+      @media (max-width:700px) { .panel,.lesson-panel { bottom:max(16px,env(safe-area-inset-bottom)); gap:8px; } #controls { gap:2px; padding:5px; border-radius:22px; } .control { min-height:40px; padding:10px 12px; font-size:12px; } #reset-view { top:max(76px,env(safe-area-inset-top) + 52px); right:max(16px,env(safe-area-inset-right)); } #github-link { top:max(76px,env(safe-area-inset-top) + 52px); right:max(68px,env(safe-area-inset-right) + 52px); } #lesson-switcher { top:max(12px,env(safe-area-inset-top)); max-width:calc(100% - 24px); overflow-x:auto; } .lesson-tab { padding:8px 10px; font-size:12px; } #pipeline-panel { top:72px; left:12px; width:min(250px,calc(100% - 24px)); } #mockup-panel { top:auto; left:12px; right:12px; bottom:12px; width:auto; max-height:44vh; overflow:auto; } }
+      @media (max-width:700px) { #mockup-panel { bottom:94px; max-height:42vh; } }
       @media (prefers-reduced-motion:reduce) { *,*::before,*::after { transition:none!important; animation:none!important; } }
     </style>
     <script type="importmap">{"imports":{"three":"./assets/three.module.min.js?v=165"}}</script>
@@ -59,8 +72,8 @@
       <section id="stage" aria-label="Foldable product viewer">
         <canvas id="webgl" aria-label="Interactive foldable product model. Drag to orbit and use the scroll wheel to zoom."></canvas>
         <nav id="lesson-switcher" class="glass" aria-label="Teaching views" role="tablist">
-          <button class="lesson-tab" type="button" role="tab" aria-selected="true" data-view="demo">Product Demo</button>
-          <button class="lesson-tab" type="button" role="tab" aria-selected="false" data-view="anatomy">Device Anatomy</button>
+          <button class="lesson-tab" type="button" role="tab" aria-selected="true" data-view="mockup">Mockup</button>
+          <button class="lesson-tab" type="button" role="tab" aria-selected="false" data-view="demo">Product Demo</button>
           <button class="lesson-tab" type="button" role="tab" aria-selected="false" data-view="pipeline">WebGL Pipeline</button>
         </nav>
         <button id="reset-view" class="icon-button glass" type="button" aria-label="Reset 3D view" title="Reset view">
@@ -73,17 +86,26 @@
           <div id="fold-controls" class="glass">
             <input id="fold" type="range" min="0" max="1" step="0.001" value="0.333" aria-label="Fold amount" />
             <output id="fold-value" for="fold">33%</output>
-            <button id="replay" class="icon-button" type="button" aria-label="Replay fold sequence" title="Replay">
-              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5a1 1 0 0 1 1.5-.86l10 6a1 1 0 0 1 0 1.72l-10 6A1 1 0 0 1 8 17.5z"/></svg>
-            </button>
           </div>
           <nav id="controls" class="glass" aria-label="Product poses"></nav>
         </div>
-        <section id="anatomy-panel" class="lesson-panel glass" aria-label="Device anatomy controls" hidden>
-          <button id="explode-toggle" class="primary-action" type="button" aria-pressed="false">Explode model</button>
-          <input id="explode" class="lesson-range" type="range" min="0" max="1" step="0.001" value="0" aria-label="Explosion amount" />
-          <output id="anatomy-label" for="explode">Assembled</output>
-        </section>
+        <aside id="mockup-panel" class="lesson-panel glass" aria-label="Screen mockup controls">
+          <div class="mockup-heading"><h2>Screen Mockup</h2><button id="mockup-clear" class="text-button" type="button">Clear</button></div>
+          <label id="mockup-drop" for="mockup-file" tabindex="0">
+            <strong>Choose an image</strong><span>or drop PNG, JPG, WebP or AVIF</span>
+          </label>
+          <input id="mockup-file" type="file" accept="image/png,image/jpeg,image/webp,image/avif" hidden />
+          <div id="mockup-targets" class="mockup-segment" aria-label="Target screen">
+            <button type="button" data-target="both" aria-pressed="true">Both</button>
+            <button type="button" data-target="inner" aria-pressed="false">Inner</button>
+            <button type="button" data-target="outer" aria-pressed="false">Outer</button>
+          </div>
+          <label class="mockup-row"><span>Fit</span><select id="mockup-fit"><option value="cover">Cover</option><option value="contain">Contain</option></select></label>
+          <label class="mockup-row"><span>Zoom</span><input id="mockup-zoom" type="range" min="1" max="3" step="0.01" value="1" /></label>
+          <label class="mockup-row"><span>Left / right</span><input id="mockup-x" type="range" min="-1" max="1" step="0.01" value="0" /></label>
+          <label class="mockup-row"><span>Up / down</span><input id="mockup-y" type="range" min="-1" max="1" step="0.01" value="0" /></label>
+          <p class="mockup-hint">Drag to rotate · scroll to zoom · right-drag to move</p>
+        </aside>
         <aside id="pipeline-panel" class="lesson-panel glass" aria-label="WebGL rendering stages" hidden>
           <h2>WebGL Pipeline</h2>
           <p>Inspect each render target before it reaches the device screen.</p>
@@ -93,6 +115,6 @@
         <p id="status" class="glass" role="alert" hidden></p>
       </section>
     </main>
-  <script type="module" src="./main.js?v=teaching-33"></script>
+  <script type="module" src="./main.js?v=mockup-2"></script>
   </body>
 </html>

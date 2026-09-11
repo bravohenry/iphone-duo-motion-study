@@ -22,6 +22,7 @@ foldable-v2.html - 保留已有链接的 React HTML 宿主，无业务状态或�
 foldable.html - 旧链接跳转至当前工作台
 research.html - 早期独立 model-viewer 研究页面快照，不进入生产构建
 package.json / package-lock.json - npm 脚本与锁定的依赖图；不再使用 Python 静态服务启动当前工作台
+.npmrc - 将项目安装源固定为公共 npm registry，避免本机内网镜像进入 Vercel 构建
 vite.config.js - React/Tailwind 编译、单实例 Three.js alias、原始静态资源复制；构建至 dist/
 components.json - 官方 shadcn Radix Nova 配置，JS、Lucide、ui/ 路径别名
 jsconfig.json - @/* 对应 ui/*，供编辑器和 shadcn CLI 识别

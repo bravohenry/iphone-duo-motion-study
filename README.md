@@ -19,7 +19,7 @@ npm run preview
 npm test
 ```
 
-Vercel builds dist/ with npm. Root and /foldable-v2 are supported; the cleanUrls rewrite intentionally targets the extensionless route.
+Vercel builds dist/ with npm. Root and /foldable-v2 are supported; the cleanUrls rewrite intentionally targets the extensionless route. The repository .npmrc and lockfile use registry.npmjs.org, not a developer machine's private mirror.
 
 ## Workspace
 

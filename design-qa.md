@@ -34,3 +34,9 @@ The pre-existing shared scene/materials and alpha-cropped PNG exporter are retai
 - At manually enlarged or transient diagonal views, a device may approach the canvas boundary; the user retains zoom and reset controls.
 - Model/media/font rights are unchanged by this independent study.
 - The independent untracked prototypes/ directory was not part of this delivery and is not staged.
+
+## Public build follow-up
+
+The initial Git-triggered deploy failed because all 495 lockfile tarball URLs pointed to bnpm.byted.org, which Vercel could not resolve. The URLs were normalized to registry.npmjs.org without changing package versions or integrity hashes, and a repository .npmrc now pins that public source.
+
+An isolated archive of the accepted commit, with only this registry correction, passed npm ci, the production build and all 6 tests. Concurrent camera-lens/prototype development in the working tree was excluded from the release.

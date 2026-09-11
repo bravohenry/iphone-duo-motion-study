@@ -1,8 +1,9 @@
 # iPhone Duo Motion Study - local interaction research rig
 
-Static HTML + local Three.js runtime + publicly delivered reference media. `foldable-v2.html` owns the full-viewport canvas, mockup importer, segmented navigation and contextual controls; `main.js` owns upload/crop state, manual fold/product motion, optional whole-device center tracking and render-target lesson orchestration; `wallpaper-renderer.js` owns the inspectable offscreen screen-pixel pipeline and custom-image composition. Research explanations stay in README rather than the viewer.
+Static HTML + modular local Three.js runtime + publicly delivered reference media. `foldable-v2.html` owns the full-viewport canvas and contextual controls; `main.js` is the composition root; `app/` separates motion, render quality, screen materials, mockup input and shared configuration; `wallpaper-renderer.js` owns the inspectable offscreen screen-pixel pipeline and custom-image composition. Research explanations stay in README rather than the viewer.
 
 <directory>
+app/ - browser application modules for configuration, render runtime, device motion, screen materials and mockup input
 assets/ - local runtime and original reference resources (model, EXR, pose references and wallpaper layers); screenshot-derived screen crops are excluded
 shaders/ - source-derived wallpaper, bicubic blur and device-local Wipe projection passes
 math/ - wallpaper motion matrix helpers
@@ -13,9 +14,9 @@ evidence/ - target-bound runtime and source findings used to distinguish source 
 
 <config>
 README.md - provenance, run instructions, and interaction findings
-main.js - three-view orchestration, local image import/crop controls, seven product states, state-pair motion profiles, manual Slider sampling, optional live-bounds camera centering, free mockup camera and pipeline inspection
+main.js - composition root for the three views, GLTF/wallpaper lifecycles and the single render loop
 wallpaper-renderer.js - all-stage RGBA16F screen pipeline, user-image canvas composition, FramePass, two-pass blur, final-output dithering, debug targets and screen-local Wipe projection
-foldable-v2.html - current full-viewport ES-module entrypoint; Mockup, Product Demo and WebGL Pipeline segments with contextual controls
+foldable-v2.html - current full-viewport ES-module entrypoint; Mockup with transparent PNG export, Product Demo and WebGL Pipeline segments with contextual controls
 index.html - original research page retained as an earlier reference
 foldable.html - earlier viewer retained for comparison
 bundle.js - generated browser bundle of main.js and the local Three.js dependencies

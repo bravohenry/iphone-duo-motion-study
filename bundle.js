@@ -12342,8 +12342,8 @@
         return Promise.all(parser._invokeAll(function(ext) {
           return ext.afterRoot && ext.afterRoot(result);
         })).then(function() {
-          for (const scene2 of result.scenes) {
-            scene2.updateMatrixWorld();
+          for (const scene of result.scenes) {
+            scene.updateMatrixWorld();
           }
           onLoad(result);
         });
@@ -13023,7 +13023,7 @@
      * @return {Promise<THREE.Camera>}
      */
     loadCamera(cameraIndex) {
-      let camera2;
+      let camera;
       const cameraDef = this.json.cameras[cameraIndex];
       const params = cameraDef[cameraDef.type];
       if (!params) {
@@ -13031,13 +13031,13 @@
         return;
       }
       if (cameraDef.type === "perspective") {
-        camera2 = new Qs(Jn.radToDeg(params.yfov), params.aspectRatio || 1, params.znear || 1, params.zfar || 2e6);
+        camera = new Qs(Jn.radToDeg(params.yfov), params.aspectRatio || 1, params.znear || 1, params.zfar || 2e6);
       } else if (cameraDef.type === "orthographic") {
-        camera2 = new Ea(-params.xmag, params.xmag, params.ymag, -params.ymag, params.znear, params.zfar);
+        camera = new Ea(-params.xmag, params.xmag, params.ymag, -params.ymag, params.znear, params.zfar);
       }
-      if (cameraDef.name) camera2.name = this.createUniqueName(cameraDef.name);
-      assignExtrasToUserData(camera2, cameraDef);
-      return Promise.resolve(camera2);
+      if (cameraDef.name) camera.name = this.createUniqueName(cameraDef.name);
+      assignExtrasToUserData(camera, cameraDef);
+      return Promise.resolve(camera);
     }
     /**
      * Specification: https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#skins
@@ -13211,8 +13211,8 @@
         pending.push(meshPromise);
       }
       if (nodeDef.camera !== void 0) {
-        pending.push(parser.getDependency("camera", nodeDef.camera).then(function(camera2) {
-          return parser._getNodeRef(parser.cameraCache, nodeDef.camera, camera2);
+        pending.push(parser.getDependency("camera", nodeDef.camera).then(function(camera) {
+          return parser._getNodeRef(parser.cameraCache, nodeDef.camera, camera);
         }));
       }
       parser._invokeAll(function(ext) {
@@ -13274,10 +13274,10 @@
       const extensions = this.extensions;
       const sceneDef = this.json.scenes[sceneIndex];
       const parser = this;
-      const scene2 = new Wl();
-      if (sceneDef.name) scene2.name = parser.createUniqueName(sceneDef.name);
-      assignExtrasToUserData(scene2, sceneDef);
-      if (sceneDef.extensions) addUnknownExtensionsToUserData(extensions, scene2, sceneDef);
+      const scene = new Wl();
+      if (sceneDef.name) scene.name = parser.createUniqueName(sceneDef.name);
+      assignExtrasToUserData(scene, sceneDef);
+      if (sceneDef.extensions) addUnknownExtensionsToUserData(extensions, scene, sceneDef);
       const nodeIds = sceneDef.nodes || [];
       const pending = [];
       for (let i = 0, il2 = nodeIds.length; i < il2; i++) {
@@ -13285,7 +13285,7 @@
       }
       return Promise.all(pending).then(function(nodes) {
         for (let i = 0, il2 = nodes.length; i < il2; i++) {
-          scene2.add(nodes[i]);
+          scene.add(nodes[i]);
         }
         const reduceAssociations = (node) => {
           const reducedAssociations = /* @__PURE__ */ new Map();
@@ -13302,8 +13302,8 @@
           });
           return reducedAssociations;
         };
-        parser.associations = reduceAssociations(scene2);
-        return scene2;
+        parser.associations = reduceAssociations(scene);
+        return scene;
       });
     }
     _createAnimationTracks(node, inputAccessor, outputAccessor, sampler, target) {
@@ -13463,6 +13463,148 @@
     return Promise.all(pending).then(function() {
       return primitiveDef.targets !== void 0 ? addMorphTargets(geometry, primitiveDef.targets, parser) : geometry;
     });
+  }
+
+  // app/config.js?v=1
+  var CLIP_SECONDS = 2;
+  var PASSES_LAYER_COUNT = 5;
+  var PRODUCT_STATES = [
+    { id: "foldable", label: "Foldable", fold: 0.3333, interactive: true, primary: { position: [2.668, 0, 0] } },
+    { id: "landscape", label: "Landscape", fold: 1 },
+    { id: "portrait", label: "Portrait", fold: 1, pose: { rotation: [0, Math.PI / 2, 0] } },
+    { id: "closed", label: "Closed", fold: 0, primary: { position: [4, 0, 0] } },
+    { id: "seated", label: "Seated", fold: 0.5111, orbit: [31, 1.38, -Math.PI / 2], primary: { position: [0, -4, 0] }, pose: { rotation: [0, Math.PI / 2, -Math.PI / 2] } },
+    { id: "standing", label: "Standing", fold: 0.25, orbit: [29, 1.45, Math.PI * 0.8], primary: { position: [0, 4, 0.2562] }, accent: { rotation: [0, -Math.PI / 2, -Math.PI / 8] } },
+    { id: "durability", label: "Durability", fold: 0.3333, orbit: [25, 1.43, Math.PI * 0.52], primary: { position: [4, 0, 0.2379] }, pose: { rotation: [0, 0, -Math.PI / 6] } }
+  ];
+  var PIPELINE_STAGES = [
+    { id: "sky", label: "01 Sky", layers: 1, texture: "wallpaper", description: "Base sky gradient and source texture." },
+    { id: "stars", label: "02 Stars", layers: 2, texture: "wallpaper", description: "Additive star field composited over the sky." },
+    { id: "hills", label: "03 Hills", layers: 3, texture: "wallpaper", description: "Depth-tested procedural hills, LUTs and noise." },
+    { id: "dunes", label: "04 Dunes", layers: 5, texture: "wallpaper", description: "Near and far dune layers driven by fold progress." },
+    { id: "ui", label: "05 UI", layers: 5, texture: "ui", description: "Lock-screen plate composited with the animated wallpaper." },
+    { id: "frame", label: "06 Frame", layers: 5, texture: "frame", description: "0.9 inset, rounded display boundary and black surround." },
+    { id: "blur", label: "07 Blur", layers: 5, texture: "blur", description: "Two bicubic mip passes controlled by hinge position." },
+    { id: "wipe", label: "08 Wipe", layers: 5, texture: "blur", device: true, description: "The result is projected through the folding screen in local 3D space." }
+  ];
+
+  // app/mockup-controller.js?v=1
+  function createMockupController({ status: status2, getViewMode }) {
+    const fileInput = document.querySelector("#mockup-file");
+    const dropTarget = document.querySelector("#mockup-drop");
+    const clearButton = document.querySelector("#mockup-clear");
+    const targetButtons = [...document.querySelectorAll("#mockup-targets button")];
+    const fitControl = document.querySelector("#mockup-fit");
+    const zoomControl = document.querySelector("#mockup-zoom");
+    const xControl = document.querySelector("#mockup-x");
+    const yControl = document.querySelector("#mockup-y");
+    let wallpaperRenderer2;
+    let mockupTarget = "both";
+    const images = { inner: null, outer: null };
+    const names = { inner: "", outer: "" };
+    function targetModes(target = mockupTarget) {
+      return target === "both" ? ["inner", "outer"] : [target];
+    }
+    function currentOptions() {
+      return { fit: fitControl.value, zoom: Number(zoomControl.value), x: Number(xControl.value), y: Number(yControl.value) };
+    }
+    function applyOptions() {
+      wallpaperRenderer2?.setCustomOptions(currentOptions(), targetModes());
+    }
+    function updateDropLabel() {
+      const modes = targetModes();
+      const selectedNames = [...new Set(modes.map((mode) => names[mode]).filter(Boolean))];
+      const title = selectedNames.length === 1 ? selectedNames[0] : selectedNames.length > 1 ? "Different images" : "Choose an image";
+      const detail = selectedNames.length ? "drop another to replace" : "or drop PNG, JPG, WebP or AVIF";
+      dropTarget.querySelector("strong").textContent = title;
+      dropTarget.querySelector("span").textContent = detail;
+    }
+    function syncControls() {
+      const mode = mockupTarget === "outer" ? "outer" : "inner";
+      const options = wallpaperRenderer2?.getCustomOptions(mode) || { fit: "cover", zoom: 1, x: 0, y: 0 };
+      fitControl.value = options.fit;
+      zoomControl.value = String(options.zoom);
+      xControl.value = String(options.x);
+      yControl.value = String(options.y);
+      updateDropLabel();
+    }
+    async function loadFile(file) {
+      if (!file?.type.startsWith("image/")) {
+        status2.textContent = "Choose a PNG, JPG, WebP or AVIF image.";
+        status2.hidden = false;
+        return;
+      }
+      if (file.size > 40 * 1024 * 1024) {
+        status2.textContent = "Choose an image smaller than 40 MB.";
+        status2.hidden = false;
+        return;
+      }
+      const url = URL.createObjectURL(file);
+      const image = new Image();
+      image.decoding = "async";
+      image.src = url;
+      try {
+        await image.decode();
+        const modes = targetModes();
+        modes.forEach((mode) => {
+          images[mode] = image;
+          names[mode] = file.name;
+        });
+        wallpaperRenderer2?.setCustomImage(image, modes);
+        applyOptions();
+        updateDropLabel();
+        dropTarget.querySelector("span").textContent = `${image.naturalWidth} \xD7 ${image.naturalHeight} \xB7 drop another to replace`;
+        status2.hidden = true;
+      } catch {
+        status2.textContent = "This image could not be decoded.";
+        status2.hidden = false;
+      } finally {
+        URL.revokeObjectURL(url);
+        fileInput.value = "";
+      }
+    }
+    fileInput.addEventListener("change", () => loadFile(fileInput.files[0]));
+    dropTarget.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        fileInput.click();
+      }
+    });
+    ["dragenter", "dragover"].forEach((type) => addEventListener(type, (event) => {
+      if (getViewMode() !== "mockup") return;
+      event.preventDefault();
+      dropTarget.dataset.active = "true";
+    }));
+    ["dragleave", "drop"].forEach((type) => addEventListener(type, (event) => {
+      if (getViewMode() !== "mockup") return;
+      event.preventDefault();
+      dropTarget.dataset.active = "false";
+      if (type === "drop") loadFile(event.dataTransfer?.files[0]);
+    }));
+    targetButtons.forEach((button) => button.addEventListener("click", () => {
+      mockupTarget = button.dataset.target;
+      targetButtons.forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
+      syncControls();
+    }));
+    [fitControl, zoomControl, xControl, yControl].forEach((control) => control.addEventListener("input", applyOptions));
+    clearButton.addEventListener("click", () => {
+      const modes = targetModes();
+      wallpaperRenderer2?.clearCustomImage(modes);
+      modes.forEach((mode) => {
+        images[mode] = null;
+        names[mode] = "";
+      });
+      updateDropLabel();
+    });
+    function setWallpaperRenderer(instance) {
+      wallpaperRenderer2 = instance;
+      Object.entries(images).forEach(([mode, image]) => {
+        if (image) wallpaperRenderer2.setCustomImage(image, [mode]);
+      });
+      applyOptions();
+      syncControls();
+    }
+    return { setWallpaperRenderer };
   }
 
   // assets/OrbitControls.js?v=165
@@ -14238,6 +14380,301 @@
       this.update();
     }
   };
+
+  // app/motion-controller.js?v=3
+  var DEFAULT_ORBIT = { radius: 35, phi: Math.PI / 2, theta: Math.PI };
+  var RIG_DEFAULTS = {
+    primary: { position: [0, 0, 0], rotation: [Math.PI / 2, Math.PI, 0] },
+    pose: { position: [0, 0, 0], rotation: [0, 0, 0] },
+    accent: { position: [0, 0, 0], rotation: [0, 0, 0] }
+  };
+  function normalizeFold(value) {
+    return Math.max(0, Math.min(1, Number(value)));
+  }
+  function easeOutCubic(value) {
+    return 1 - Math.pow(1 - value, 3);
+  }
+  function easeInFastOut(value) {
+    return 2 * Math.pow(value, 3) - Math.pow(value, 6);
+  }
+  function lerpAngle(from, to2, amount) {
+    const delta = Jn.euclideanModulo(to2 - from + Math.PI, Math.PI * 2) - Math.PI;
+    return from + delta * amount;
+  }
+  function createMotionController({ camera, canvas: canvas2, slider, foldValue, foldControls, autoCenterButton, resetView, controlsElement }) {
+    const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let selected = PRODUCT_STATES[0];
+    let currentFold = selected.fold;
+    let transition = null;
+    let mixer;
+    let sliderAction;
+    let turntable;
+    let poseRig;
+    let accentRig;
+    let productRoot2;
+    let frame;
+    let orbitControls;
+    let viewMode2 = "mockup";
+    let autoCenter = false;
+    const orbit = new gm();
+    const productBounds = new Ii();
+    const viewCenter = new Ci();
+    function transformFor(state, key, defaults) {
+      const transform = state[key] || {};
+      return { position: transform.position || defaults.position, rotation: transform.rotation || defaults.rotation };
+    }
+    function setTransform(rig, transform) {
+      if (!rig) return;
+      rig.position.fromArray(transform.position);
+      rig.rotation.set(...transform.rotation);
+    }
+    function setRigState(state) {
+      setTransform(turntable, transformFor(state, "primary", RIG_DEFAULTS.primary));
+      setTransform(poseRig, transformFor(state, "pose", RIG_DEFAULTS.pose));
+      setTransform(accentRig, transformFor(state, "accent", RIG_DEFAULTS.accent));
+    }
+    function getRigState() {
+      const read = (rig) => ({ position: rig ? rig.position.toArray() : [0, 0, 0], rotation: rig ? [rig.rotation.x, rig.rotation.y, rig.rotation.z] : [0, 0, 0] });
+      return { primary: read(turntable), pose: read(poseRig), accent: read(accentRig) };
+    }
+    function interpolateTransform(rig, from, to2, amount) {
+      if (!rig) return;
+      rig.position.fromArray(from.position.map((value, index) => Jn.lerp(value, to2.position[index], amount)));
+      rig.rotation.set(...from.rotation.map((value, index) => lerpAngle(value, to2.rotation[index], amount)));
+    }
+    function setFold(value) {
+      currentFold = normalizeFold(value);
+      slider.value = String(currentFold);
+      foldValue.value = `${Math.round(currentFold * 100)}%`;
+      slider.setAttribute("aria-valuetext", `${Math.round(currentFold * 100)}% open`);
+      if (!mixer || !sliderAction) return;
+      sliderAction.enabled = true;
+      sliderAction.paused = false;
+      mixer.setTime(currentFold * CLIP_SECONDS);
+      sliderAction.paused = true;
+    }
+    function orbitFor(state) {
+      if (!frame) return;
+      if (!state.orbit) return { ...DEFAULT_ORBIT };
+      const [radius, phi, theta] = state.orbit;
+      return { radius, phi, theta };
+    }
+    function centerForCurrentView() {
+      const shouldFollow = autoCenter && selected.interactive && (viewMode2 === "mockup" || viewMode2 === "demo") && productRoot2;
+      if (!shouldFollow) return viewCenter.copy(frame.center);
+      productRoot2.updateWorldMatrix(true, true);
+      productRoot2.traverse((node) => {
+        if (node.isSkinnedMesh) node.computeBoundingBox();
+      });
+      productBounds.setFromObject(productRoot2);
+      return productBounds.isEmpty() ? viewCenter.copy(frame.center) : productBounds.getCenter(viewCenter);
+    }
+    function syncOrbitFromCamera() {
+      if (!orbitControls) return;
+      orbit.setFromVector3(camera.position.clone().sub(orbitControls.target));
+    }
+    function applyOrbit() {
+      if (!frame) return;
+      const center = centerForCurrentView();
+      camera.position.copy(center).add(new Ci().setFromSpherical(orbit));
+      camera.lookAt(center);
+      if (orbitControls) {
+        orbitControls.target.copy(center);
+        orbitControls.update();
+      }
+    }
+    function applyView(state) {
+      const targetOrbit = orbitFor(state);
+      if (!targetOrbit) return;
+      Object.assign(orbit, targetOrbit);
+      setRigState(state);
+      applyOrbit();
+    }
+    function updateControls(state) {
+      controlsElement.querySelectorAll(".control").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.state === state.id)));
+      slider.disabled = !state.interactive;
+      foldControls.hidden = !state.interactive;
+    }
+    function finishTransition(target) {
+      transition = null;
+      setFold(target.fold);
+      applyView(target);
+    }
+    function transitionProfile(from, to2) {
+      if (from.id === "foldable" && to2.id === "landscape") return { duration: 1e3, easing: easeInFastOut };
+      return { duration: 620, easing: easeOutCubic };
+    }
+    function selectState(target) {
+      const from = selected;
+      selected = target;
+      updateControls(target);
+      const profile = transitionProfile(from, target);
+      const duration = reducedMotion ? 0 : profile.duration;
+      const targetOrbit = orbitFor(target);
+      const targetRig = Object.fromEntries(Object.entries(RIG_DEFAULTS).map(([key, defaults]) => [key, transformFor(target, key, defaults)]));
+      transition = { target, fromFold: currentFold, fromOrbit: { ...orbit }, targetOrbit, fromRig: getRigState(), targetRig, start: performance.now(), duration, easing: profile.easing };
+      if (duration === 0) finishTransition(target);
+    }
+    PRODUCT_STATES.forEach((state) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "control";
+      button.dataset.state = state.id;
+      button.setAttribute("aria-pressed", String(state === selected));
+      button.textContent = state.label;
+      button.addEventListener("click", () => selectState(state));
+      controlsElement.append(button);
+    });
+    slider.addEventListener("input", (event) => {
+      if (!selected.interactive) return;
+      transition = null;
+      setFold(event.target.value);
+      if (autoCenter) {
+        syncOrbitFromCamera();
+        applyOrbit();
+      }
+    });
+    autoCenterButton.addEventListener("click", () => {
+      syncOrbitFromCamera();
+      autoCenter = !autoCenter;
+      autoCenterButton.setAttribute("aria-pressed", String(autoCenter));
+      if (autoCenter) applyOrbit();
+    });
+    const revealFreeView = () => {
+      transition = null;
+    };
+    canvas2.addEventListener("pointerdown", revealFreeView);
+    canvas2.addEventListener("wheel", revealFreeView, { passive: true });
+    resetView.addEventListener("click", () => {
+      transition = null;
+      applyView(selected);
+    });
+    function attachModel(model) {
+      ({ mixer, sliderAction, turntable, poseRig, accentRig, productRoot: productRoot2, frame } = model);
+      orbitControls = new OrbitControls(camera, canvas2);
+      orbitControls.enableDamping = true;
+      orbitControls.dampingFactor = 0.18;
+      orbitControls.rotateSpeed = 0.45;
+      orbitControls.zoomSpeed = 0.65;
+      orbitControls.panSpeed = 0.45;
+      orbitControls.minDistance = 16;
+      orbitControls.maxDistance = 72;
+      orbitControls.target.copy(frame.center);
+      setViewMode2(viewMode2);
+    }
+    function setViewMode2(mode) {
+      viewMode2 = mode;
+      if (orbitControls) {
+        orbitControls.minPolarAngle = mode === "mockup" ? 0.08 : 1.1519173063162575;
+        orbitControls.maxPolarAngle = mode === "mockup" ? Math.PI - 0.08 : 2.0943951023931953;
+        orbitControls.enablePan = true;
+      }
+      if ((mode === "demo" || mode === "mockup") && frame) {
+        setFold(selected.fold);
+        applyView(selected);
+      }
+    }
+    function showPipelineDevice() {
+      if (!frame) return;
+      setFold(0.72);
+      Object.assign(orbit, DEFAULT_ORBIT);
+      setRigState(PRODUCT_STATES[0]);
+      applyOrbit();
+    }
+    function tick2(now) {
+      if (transition) {
+        const elapsed = transition.duration === 0 ? 1 : Math.min(1, (now - transition.start) / transition.duration);
+        const progress = transition.easing(elapsed);
+        setFold(Jn.lerp(transition.fromFold, transition.target.fold, progress));
+        if (transition.targetOrbit) {
+          orbit.radius = Jn.lerp(transition.fromOrbit.radius, transition.targetOrbit.radius, progress);
+          orbit.phi = Jn.lerp(transition.fromOrbit.phi, transition.targetOrbit.phi, progress);
+          orbit.theta = lerpAngle(transition.fromOrbit.theta, transition.targetOrbit.theta, progress);
+          applyOrbit();
+        }
+        interpolateTransform(turntable, transition.fromRig.primary, transition.targetRig.primary, progress);
+        interpolateTransform(poseRig, transition.fromRig.pose, transition.targetRig.pose, progress);
+        interpolateTransform(accentRig, transition.fromRig.accent, transition.targetRig.accent, progress);
+        if (elapsed === 1) finishTransition(transition.target);
+      }
+      orbitControls?.update();
+    }
+    return {
+      attachModel,
+      setViewMode: setViewMode2,
+      showPipelineDevice,
+      tick: tick2,
+      getFold: () => currentFold,
+      updateOrbitControls: () => orbitControls?.update()
+    };
+  }
+
+  // app/png-exporter.js?v=1
+  function flipAndUnpremultiply(source, width, height) {
+    const output = new Uint8ClampedArray(source.length);
+    const rowBytes = width * 4;
+    for (let y2 = 0; y2 < height; y2 += 1) {
+      const sourceRow = (height - 1 - y2) * rowBytes;
+      const outputRow = y2 * rowBytes;
+      for (let x3 = 0; x3 < rowBytes; x3 += 4) {
+        const sourceIndex = sourceRow + x3;
+        const outputIndex = outputRow + x3;
+        const alpha = source[sourceIndex + 3];
+        const scale = alpha > 0 && alpha < 255 ? 255 / alpha : 1;
+        output[outputIndex] = Math.min(255, Math.round(source[sourceIndex] * scale));
+        output[outputIndex + 1] = Math.min(255, Math.round(source[sourceIndex + 1] * scale));
+        output[outputIndex + 2] = Math.min(255, Math.round(source[sourceIndex + 2] * scale));
+        output[outputIndex + 3] = alpha;
+      }
+    }
+    return output;
+  }
+  function canvasToBlob(canvas2) {
+    return new Promise((resolve, reject) => {
+      canvas2.toBlob((blob) => blob ? resolve(blob) : reject(new Error("PNG encoding failed.")), "image/png");
+    });
+  }
+  async function downloadTransparentPng({ renderer, scene, camera, filename = "iphone-duo-mockup.png" }) {
+    const size = renderer.getDrawingBufferSize(new Kn());
+    const width = Math.max(1, Math.floor(size.x));
+    const height = Math.max(1, Math.floor(size.y));
+    const target = new bi(width, height, {
+      format: kt,
+      type: Et,
+      depthBuffer: true,
+      samples: renderer.capabilities.isWebGL2 ? 4 : 0
+    });
+    target.texture.colorSpace = qe;
+    const previousTarget = renderer.getRenderTarget();
+    const previousColor = renderer.getClearColor(new Yr()).clone();
+    const previousAlpha = renderer.getClearAlpha();
+    const pixels = new Uint8Array(width * height * 4);
+    try {
+      renderer.setRenderTarget(target);
+      renderer.setClearColor(0, 0);
+      renderer.clear(true, true, true);
+      renderer.render(scene, camera);
+      renderer.setRenderTarget(previousTarget);
+      renderer.readRenderTargetPixels(target, 0, 0, width, height, pixels);
+    } finally {
+      renderer.setRenderTarget(previousTarget);
+      renderer.setClearColor(previousColor, previousAlpha);
+      target.dispose();
+    }
+    const exportCanvas = document.createElement("canvas");
+    exportCanvas.width = width;
+    exportCanvas.height = height;
+    const context = exportCanvas.getContext("2d");
+    context.putImageData(new ImageData(flipAndUnpremultiply(pixels, width, height), width, height), 0, 0);
+    const blob = await canvasToBlob(exportCanvas);
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.click();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+    return { width, height, bytes: blob.size };
+  }
 
   // libs/fflate.module.js
   var u8 = Uint8Array;
@@ -16093,6 +16530,113 @@
     }
   };
 
+  // app/render-quality.js?v=1
+  var MIN_SUPERSAMPLE = 1.5;
+  var MAX_PIXEL_RATIO = 2.5;
+  var DEVICE_RATIO_SCALE = 1.25;
+  var MAX_RENDER_PIXELS = 85e5;
+  function resolvePixelRatio(width, height, nativeRatio = globalThis.devicePixelRatio || 1) {
+    const area = Math.max(1, width * height);
+    const budgetRatio = Math.sqrt(MAX_RENDER_PIXELS / area);
+    const preferred = Math.max(MIN_SUPERSAMPLE, nativeRatio * DEVICE_RATIO_SCALE);
+    return Math.max(1, Math.min(MAX_PIXEL_RATIO, preferred, budgetRatio));
+  }
+
+  // app/render-runtime.js?v=3
+  var PIPELINE_FALLBACK_ASPECT = 2670 / 1878;
+  function createRenderRuntime(canvas2) {
+    const renderer = new Ql({
+      canvas: canvas2,
+      antialias: true,
+      alpha: false,
+      powerPreference: "high-performance"
+    });
+    renderer.outputColorSpace = qe;
+    renderer.toneMapping = et;
+    renderer.toneMappingExposure = 1;
+    renderer.setClearColor(16777215, 1);
+    const scene = new nc();
+    const camera = new Qs(50, 1, 0.01, 100);
+    camera.zoom = 1.5;
+    scene.add(new ep(16777215, 9279136, 2.2));
+    const keyLight = new mp(16777215, 4.5);
+    keyLight.position.set(5, 6, 8);
+    scene.add(keyLight);
+    const fillLight = new mp(14543103, 2.2);
+    fillLight.position.set(-5, 2, 4);
+    scene.add(fillLight);
+    const pipelineScene = new nc();
+    const pipelineCamera = new Ea(-1, 1, 1, -1, 0, 2);
+    pipelineCamera.position.z = 1;
+    const pipelineMaterial = new $r({ color: 16777215, toneMapped: false });
+    const pipelineQuad = new Vs(new pa(2, 2), pipelineMaterial);
+    pipelineScene.add(pipelineQuad);
+    let appliedPixelRatio = 0;
+    function resize2() {
+      const { width, height } = canvas2.getBoundingClientRect();
+      const pixelRatio = resolvePixelRatio(width, height);
+      if (Math.abs(pixelRatio - appliedPixelRatio) > 0.01) {
+        renderer.setPixelRatio(pixelRatio);
+        appliedPixelRatio = pixelRatio;
+      }
+      renderer.setSize(width, height, false);
+      camera.aspect = width / height;
+      camera.zoom = 1.5 * Math.min(1, camera.aspect);
+      camera.updateProjectionMatrix();
+      const texture = pipelineMaterial.map;
+      const imageAspect = texture?.image?.width && texture?.image?.height ? texture.image.width / texture.image.height : PIPELINE_FALLBACK_ASPECT;
+      const viewportAspect = width / height;
+      pipelineQuad.scale.set(viewportAspect > imageAspect ? imageAspect / viewportAspect : 1, viewportAspect > imageAspect ? 1 : viewportAspect / imageAspect, 1);
+    }
+    function setPipelineTexture(texture) {
+      if (!texture || pipelineMaterial.map === texture) return;
+      pipelineMaterial.map = texture;
+      pipelineMaterial.needsUpdate = true;
+      resize2();
+    }
+    function render(usePipelineScene) {
+      renderer.render(usePipelineScene ? pipelineScene : scene, usePipelineScene ? pipelineCamera : camera);
+    }
+    function loadEnvironment(url) {
+      return new Promise((resolve, reject) => {
+        new EXRLoader().load(url, (texture) => {
+          const pmrem = new Ba(renderer);
+          scene.environment = pmrem.fromEquirectangular(texture).texture;
+          texture.dispose();
+          pmrem.dispose();
+          resolve(scene.environment);
+        }, void 0, reject);
+      });
+    }
+    return { renderer, scene, camera, pipelineMaterial, resize: resize2, setPipelineTexture, render, loadEnvironment };
+  }
+
+  // app/screen-materials.js?v=1
+  var SCREEN_MODES = /* @__PURE__ */ new Map([
+    ["skeleton_0_3_screenTexture_geo", "inner"],
+    ["skeleton_0_7_outerDisplayScreenTexture_geo", "outer"]
+  ]);
+  function installDynamicScreens(root, dynamicWallpaper) {
+    root.traverse((node) => {
+      if (!node.isMesh) return;
+      const mode = SCREEN_MODES.get(node.name);
+      if (!mode) return;
+      const material = Array.isArray(node.material) ? node.material[0] : node.material;
+      if (!material) return;
+      material.map = null;
+      material.emissiveMap = dynamicWallpaper?.getTexture(mode) ?? null;
+      material.color.set(0);
+      material.emissive.set(16777215);
+      material.emissiveIntensity = dynamicWallpaper ? 1 : 0;
+      material.metalness = 0;
+      material.roughness = mode === "inner" ? 0.33 : 0.05;
+      material.toneMapped = false;
+      material.dithering = true;
+      dynamicWallpaper?.installScreen(node, mode);
+      material.needsUpdate = true;
+    });
+  }
+
   // utils/WorkerPool.js
   var WorkerPool = class {
     constructor(pool = 4) {
@@ -16298,35 +16842,35 @@
       this.workerPool.setWorkerLimit(num);
       return this;
     }
-    async detectSupportAsync(renderer2) {
+    async detectSupportAsync(renderer) {
       this.workerConfig = {
-        astcSupported: await renderer2.hasFeatureAsync("texture-compression-astc"),
-        etc1Supported: await renderer2.hasFeatureAsync("texture-compression-etc1"),
-        etc2Supported: await renderer2.hasFeatureAsync("texture-compression-etc2"),
-        dxtSupported: await renderer2.hasFeatureAsync("texture-compression-bc"),
-        bptcSupported: await renderer2.hasFeatureAsync("texture-compression-bptc"),
-        pvrtcSupported: await renderer2.hasFeatureAsync("texture-compression-pvrtc")
+        astcSupported: await renderer.hasFeatureAsync("texture-compression-astc"),
+        etc1Supported: await renderer.hasFeatureAsync("texture-compression-etc1"),
+        etc2Supported: await renderer.hasFeatureAsync("texture-compression-etc2"),
+        dxtSupported: await renderer.hasFeatureAsync("texture-compression-bc"),
+        bptcSupported: await renderer.hasFeatureAsync("texture-compression-bptc"),
+        pvrtcSupported: await renderer.hasFeatureAsync("texture-compression-pvrtc")
       };
       return this;
     }
-    detectSupport(renderer2) {
-      if (renderer2.isWebGPURenderer === true) {
+    detectSupport(renderer) {
+      if (renderer.isWebGPURenderer === true) {
         this.workerConfig = {
-          astcSupported: renderer2.hasFeature("texture-compression-astc"),
-          etc1Supported: renderer2.hasFeature("texture-compression-etc1"),
-          etc2Supported: renderer2.hasFeature("texture-compression-etc2"),
-          dxtSupported: renderer2.hasFeature("texture-compression-bc"),
-          bptcSupported: renderer2.hasFeature("texture-compression-bptc"),
-          pvrtcSupported: renderer2.hasFeature("texture-compression-pvrtc")
+          astcSupported: renderer.hasFeature("texture-compression-astc"),
+          etc1Supported: renderer.hasFeature("texture-compression-etc1"),
+          etc2Supported: renderer.hasFeature("texture-compression-etc2"),
+          dxtSupported: renderer.hasFeature("texture-compression-bc"),
+          bptcSupported: renderer.hasFeature("texture-compression-bptc"),
+          pvrtcSupported: renderer.hasFeature("texture-compression-pvrtc")
         };
       } else {
         this.workerConfig = {
-          astcSupported: renderer2.extensions.has("WEBGL_compressed_texture_astc"),
-          etc1Supported: renderer2.extensions.has("WEBGL_compressed_texture_etc1"),
-          etc2Supported: renderer2.extensions.has("WEBGL_compressed_texture_etc"),
-          dxtSupported: renderer2.extensions.has("WEBGL_compressed_texture_s3tc"),
-          bptcSupported: renderer2.extensions.has("EXT_texture_compression_bptc"),
-          pvrtcSupported: renderer2.extensions.has("WEBGL_compressed_texture_pvrtc") || renderer2.extensions.has("WEBKIT_WEBGL_compressed_texture_pvrtc")
+          astcSupported: renderer.extensions.has("WEBGL_compressed_texture_astc"),
+          etc1Supported: renderer.extensions.has("WEBGL_compressed_texture_etc1"),
+          etc2Supported: renderer.extensions.has("WEBGL_compressed_texture_etc"),
+          dxtSupported: renderer.extensions.has("WEBGL_compressed_texture_s3tc"),
+          bptcSupported: renderer.extensions.has("EXT_texture_compression_bptc"),
+          pvrtcSupported: renderer.extensions.has("WEBGL_compressed_texture_pvrtc") || renderer.extensions.has("WEBKIT_WEBGL_compressed_texture_pvrtc")
         };
       }
       return this;
@@ -16905,7 +17449,7 @@
     const openPosition = new Ci().setFromMatrixPosition(openCameraMatrix);
     return new sr().makeRotationFromQuaternion(quaternion).setPosition(foldedPosition.lerp(openPosition, amount));
   }
-  function updateCamera(camera2, amount) {
+  function updateCamera(camera, amount) {
     const pose = {
       nodes: Object.fromEntries(Object.keys(POSES.folded.nodes).map((key) => [key, {
         translation: lerp3(POSES.folded.nodes[key].translation, POSES.open.nodes[key].translation, amount),
@@ -16917,16 +17461,16 @@
       sensorZoom: lerp(POSES.folded.sensorZoom, POSES.open.sensorZoom, amount),
       sensorShift: lerp3(POSES.folded.sensorShift, POSES.open.sensorShift, amount)
     };
-    camera2.matrix.copy(transformMatrix({ ...pose.nodes.gyro, rotationDeg: [0, 0, 0] }).multiply(interpolatedCameraMatrix(amount)));
-    camera2.matrixWorldNeedsUpdate = true;
+    camera.matrix.copy(transformMatrix({ ...pose.nodes.gyro, rotationDeg: [0, 0, 0] }).multiply(interpolatedCameraMatrix(amount)));
+    camera.matrixWorldNeedsUpdate = true;
     const aspect = 1 / 0.703370787;
     const vertical = 2 * pose.focalLength / pose.sensorSize * pose.sensorZoom;
     const horizontal = vertical / aspect;
     const [shiftX, shiftY] = [pose.sensorShift[1], -pose.sensorShift[0]];
     const near = 10;
     const far = 3e3;
-    camera2.projectionMatrix.set(horizontal, 0, -shiftX, 0, 0, vertical, -shiftY, 0, 0, 0, (far + near) / (near - far), 2 * far * near / (near - far), 0, 0, -1, 0);
-    camera2.projectionMatrixInverse.copy(camera2.projectionMatrix).invert();
+    camera.projectionMatrix.set(horizontal, 0, -shiftX, 0, 0, vertical, -shiftY, 0, 0, 0, (far + near) / (near - far), 2 * far * near / (near - far), 0, 0, -1, 0);
+    camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
   }
   var DuneAnchor = class {
     constructor(spec) {
@@ -16966,7 +17510,7 @@
     target.texture.anisotropy = 4;
     return target;
   }
-  async function createDeviceWallpaperRenderer(renderer2) {
+  async function createDeviceWallpaperRenderer(renderer) {
     const [common, noise, vertex, uiVertex, uiFragment, blurVertex, blurFragment, wipeVertexVars, wipeVertex, wipeFragmentVars, wipeFragment, frameFragment] = await Promise.all([
       "common.glsl",
       "noise.glsl",
@@ -16981,9 +17525,9 @@
       "wipe-surface.frag.glsl",
       "screen-frame.frag.glsl"
     ].map((name) => loadText(`${SHADER_ROOT}${name}`)));
-    const scene2 = new nc();
-    const camera2 = new Qs(50, 1, 10, 3e3);
-    camera2.matrixAutoUpdate = false;
+    const scene = new nc();
+    const camera = new Qs(50, 1, 10, 3e3);
+    camera.matrixAutoUpdate = false;
     const wallpaperTarget = createTarget(...TARGET_SIZE);
     wallpaperTarget.samples = 4;
     const screenScene = new nc();
@@ -17026,7 +17570,7 @@
       };
     }
     const gltfLoader = new GLTFLoader();
-    const ktxLoader = new KTX2Loader().setTranscoderPath("./libs/basis/").detectSupport(renderer2);
+    const ktxLoader = new KTX2Loader().setTranscoderPath("./libs/basis/").detectSupport(renderer);
     const exrLoader = new EXRLoader();
     const textureCache = /* @__PURE__ */ new Map();
     const loadTexture = async (filename, needsFlipFix) => {
@@ -17045,7 +17589,7 @@
     const wallpaper = await gltfLoader.loadAsync(`${ASSET_ROOT}scene-wallpaper.gltf`);
     wallpaper.scene.rotation.x = Math.PI / 2;
     wallpaper.scene.updateMatrixWorld(true);
-    scene2.add(wallpaper.scene);
+    scene.add(wallpaper.scene);
     const duneClose = new DuneAnchor(DUNE_ANCHORS.duneClose);
     const duneFar = new DuneAnchor(DUNE_ANCHORS.duneFar);
     let hinge = 1 / 3;
@@ -17150,27 +17694,27 @@ ${vertex}`,
         uiMaterial.uniforms.uiMap.value = uiTexture;
         screenQuad.material = uiMaterial;
       }
-      renderer2.setRenderTarget(uiTargets[mode]);
-      renderer2.setClearColor(0, 0);
-      renderer2.clear();
-      renderer2.render(screenScene, screenCamera);
+      renderer.setRenderTarget(uiTargets[mode]);
+      renderer.setClearColor(0, 0);
+      renderer.clear();
+      renderer.render(screenScene, screenCamera);
       frameMaterial.uniforms.map.value = uiTargets[mode].texture;
       screenQuad.material = frameMaterial;
-      renderer2.setRenderTarget(frameTargets[mode]);
-      renderer2.clear();
-      renderer2.render(screenScene, screenCamera);
+      renderer.setRenderTarget(frameTargets[mode]);
+      renderer.clear();
+      renderer.render(screenScene, screenCamera);
       const blurAmount = mode === "outer" ? clamp01(1 - 2 * Math.abs(hinge - 0.5)) / 2 : clamp01(1 - hinge);
       blurMaterial.uniforms.wipeAmount.value = blurAmount;
       blurMaterial.uniforms.wipePosition.value = mode === "inner" ? 1 : 0;
       blurMaterial.uniforms.blurBounds.value.set(...mode === "inner" ? [0.45, 1] : [0, 0.9]);
       blurMaterial.uniforms.map.value = frameTargets[mode].texture;
-      renderer2.setRenderTarget(blurTargets[mode]);
-      renderer2.clear();
-      renderer2.render(blurScene, screenCamera);
+      renderer.setRenderTarget(blurTargets[mode]);
+      renderer.clear();
+      renderer.render(blurScene, screenCamera);
       blurMaterial.uniforms.map.value = blurTargets[mode].texture;
-      renderer2.setRenderTarget(target);
-      renderer2.clear();
-      renderer2.render(blurScene, screenCamera);
+      renderer.setRenderTarget(target);
+      renderer.clear();
+      renderer.render(blurScene, screenCamera);
     }
     function drawCustomScreen(mode) {
       const screen = customScreens[mode];
@@ -17240,8 +17784,8 @@ ${wipeFragmentVars}`).replace("#include <emissivemap_fragment>", wipeFragment);
           uniforms.transitionToCameraRest.value = 0;
         } else {
           uniforms.wipeAmount.value = clamp01(1 - 2 * Math.abs(hinge - 0.5)) / 2;
-          const transition2 = clamp01((hinge - 0.45) / 0.55);
-          uniforms.transitionToCameraRest.value = transition2 * transition2 * (3 - 2 * transition2);
+          const transition = clamp01((hinge - 0.45) / 0.55);
+          uniforms.transitionToCameraRest.value = transition * transition * (3 - 2 * transition);
         }
       };
       material.needsUpdate = true;
@@ -17296,105 +17840,70 @@ ${wipeFragmentVars}`).replace("#include <emissivemap_fragment>", wipeFragment);
           material.uniforms.uDuneFarMatrix?.value.copy(farMatrix);
           material.uniforms.uDuneCloseMatrix?.value.copy(closeMatrix);
         });
-        updateCamera(camera2, fold);
-        const previousTarget = renderer2.getRenderTarget();
-        const previousColor = renderer2.getClearColor(new Yr()).clone();
-        const previousAlpha = renderer2.getClearAlpha();
-        const previousToneMapping = renderer2.toneMapping;
-        const previousExposure = renderer2.toneMappingExposure;
-        renderer2.toneMapping = K;
-        renderer2.toneMappingExposure = 1;
-        renderer2.setRenderTarget(wallpaperTarget);
-        renderer2.setClearColor(0, 0);
-        renderer2.clear();
-        renderer2.render(scene2, camera2);
+        updateCamera(camera, fold);
+        const previousTarget = renderer.getRenderTarget();
+        const previousColor = renderer.getClearColor(new Yr()).clone();
+        const previousAlpha = renderer.getClearAlpha();
+        const previousToneMapping = renderer.toneMapping;
+        const previousExposure = renderer.toneMappingExposure;
+        renderer.toneMapping = K;
+        renderer.toneMappingExposure = 1;
+        renderer.setRenderTarget(wallpaperTarget);
+        renderer.setClearColor(0, 0);
+        renderer.clear();
+        renderer.render(scene, camera);
         renderScreen("inner");
         renderScreen("outer");
-        renderer2.setRenderTarget(previousTarget);
-        renderer2.setClearColor(previousColor, previousAlpha);
-        renderer2.toneMapping = previousToneMapping;
-        renderer2.toneMappingExposure = previousExposure;
+        renderer.setRenderTarget(previousTarget);
+        renderer.setClearColor(previousColor, previousAlpha);
+        renderer.toneMapping = previousToneMapping;
+        renderer.toneMappingExposure = previousExposure;
       }
     };
   }
 
   // main.js
-  var CLIP_SECONDS = 2;
-  var PASSES_LAYER_COUNT = 5;
   var canvas = document.querySelector("#webgl");
-  var slider = document.querySelector("#fold");
-  var foldValue = document.querySelector("#fold-value");
-  var autoCenterButton = document.querySelector("#auto-center");
-  var resetView = document.querySelector("#reset-view");
-  var foldControls = document.querySelector("#fold-controls");
   var status = document.querySelector("#status");
-  var controls = document.querySelector("#controls");
   var demoPanel = document.querySelector(".panel");
   var pipelinePanel = document.querySelector("#pipeline-panel");
   var pipelineStagesElement = document.querySelector("#pipeline-stages");
   var stageDescription = document.querySelector("#stage-description");
   var mockupPanel = document.querySelector("#mockup-panel");
-  var mockupFile = document.querySelector("#mockup-file");
-  var mockupDrop = document.querySelector("#mockup-drop");
-  var mockupClear = document.querySelector("#mockup-clear");
-  var mockupTargets = [...document.querySelectorAll("#mockup-targets button")];
-  var mockupFit = document.querySelector("#mockup-fit");
-  var mockupZoom = document.querySelector("#mockup-zoom");
-  var mockupX = document.querySelector("#mockup-x");
-  var mockupY = document.querySelector("#mockup-y");
   var lessonTabs = [...document.querySelectorAll(".lesson-tab")];
-  var reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  var states = [
-    { id: "foldable", label: "Foldable", fold: 0.3333, interactive: true, primary: { position: [2.668, 0, 0] } },
-    { id: "landscape", label: "Landscape", fold: 1 },
-    { id: "portrait", label: "Portrait", fold: 1, pose: { rotation: [0, Math.PI / 2, 0] } },
-    { id: "closed", label: "Closed", fold: 0, primary: { position: [4, 0, 0] } },
-    { id: "seated", label: "Seated", fold: 0.5111, orbit: [31, 1.38, -Math.PI / 2], primary: { position: [0, -4, 0] }, pose: { rotation: [0, Math.PI / 2, -Math.PI / 2] } },
-    { id: "standing", label: "Standing", fold: 0.25, orbit: [29, 1.45, Math.PI * 0.8], primary: { position: [0, 4, 0.2562] }, accent: { rotation: [0, -Math.PI / 2, -Math.PI / 8] } },
-    { id: "durability", label: "Durability", fold: 0.3333, orbit: [25, 1.43, Math.PI * 0.52], primary: { position: [4, 0, 0.2379] }, pose: { rotation: [0, 0, -Math.PI / 6] } }
-  ];
-  var pipelineStages = [
-    { id: "sky", label: "01 Sky", layers: 1, texture: "wallpaper", description: "Base sky gradient and source texture." },
-    { id: "stars", label: "02 Stars", layers: 2, texture: "wallpaper", description: "Additive star field composited over the sky." },
-    { id: "hills", label: "03 Hills", layers: 3, texture: "wallpaper", description: "Depth-tested procedural hills, LUTs and noise." },
-    { id: "dunes", label: "04 Dunes", layers: 5, texture: "wallpaper", description: "Near and far dune layers driven by fold progress." },
-    { id: "ui", label: "05 UI", layers: 5, texture: "ui", description: "Lock-screen plate composited with the animated wallpaper." },
-    { id: "frame", label: "06 Frame", layers: 5, texture: "frame", description: "0.9 inset, rounded display boundary and black surround." },
-    { id: "blur", label: "07 Blur", layers: 5, texture: "blur", description: "Two bicubic mip passes controlled by hinge position." },
-    { id: "wipe", label: "08 Wipe", layers: 5, texture: "blur", device: true, description: "The result is projected through the folding screen in local 3D space." }
-  ];
-  var selected = states[0];
-  var currentFold = selected.fold;
-  var transition = null;
-  var mixer;
-  var sliderAction;
-  var frame;
-  var turntable;
-  var poseRig;
-  var accentRig;
-  var productRoot;
-  var wallpaperRenderer;
-  var viewMode = "mockup";
-  var autoCenter = false;
-  var mockupTarget = "both";
-  var mockupImages = { inner: null, outer: null };
-  var mockupNames = { inner: "", outer: "" };
-  var selectedPipelineStage = pipelineStages[0];
-  var orbit = new gm();
-  var productBounds = new Ii();
-  var viewCenter = new Ci();
-  var orbitControls;
-  states.forEach((state) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "control";
-    button.dataset.state = state.id;
-    button.setAttribute("aria-pressed", String(state === selected));
-    button.textContent = state.label;
-    button.addEventListener("click", () => selectState(state));
-    controls.append(button);
+  var downloadPngButton = document.querySelector("#download-png");
+  var runtime = createRenderRuntime(canvas);
+  var motion = createMotionController({
+    camera: runtime.camera,
+    canvas,
+    slider: document.querySelector("#fold"),
+    foldValue: document.querySelector("#fold-value"),
+    foldControls: document.querySelector("#fold-controls"),
+    autoCenterButton: document.querySelector("#auto-center"),
+    resetView: document.querySelector("#reset-view"),
+    controlsElement: document.querySelector("#controls")
   });
-  pipelineStages.forEach((stage) => {
+  var viewMode = "mockup";
+  var wallpaperRenderer;
+  var productRoot;
+  var selectedPipelineStage = PIPELINE_STAGES[0];
+  var mockup = createMockupController({ status, getViewMode: () => viewMode });
+  function showError(message, error) {
+    status.textContent = message;
+    status.hidden = false;
+    if (error) console.error(message, error);
+  }
+  function selectPipelineStage(stage) {
+    selectedPipelineStage = stage;
+    pipelineStagesElement.querySelectorAll(".pipeline-stage").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.stage === stage.id)));
+    stageDescription.textContent = stage.description;
+    wallpaperRenderer?.setLayerCount(stage.layers);
+    runtime.setPipelineTexture(wallpaperRenderer?.getDebugTexture(stage.texture));
+    if (productRoot) productRoot.visible = Boolean(stage.device);
+    if (stage.device) motion.showPipelineDevice();
+    runtime.resize();
+  }
+  PIPELINE_STAGES.forEach((stage) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "pipeline-stage";
@@ -17404,422 +17913,87 @@ ${wipeFragmentVars}`).replace("#include <emissivemap_fragment>", wipeFragment);
     button.addEventListener("click", () => selectPipelineStage(stage));
     pipelineStagesElement.append(button);
   });
-  var renderer = new Ql({ canvas, antialias: true, alpha: true });
-  renderer.outputColorSpace = qe;
-  renderer.toneMapping = et;
-  renderer.toneMappingExposure = 1;
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-  var scene = new nc();
-  var pipelineScene = new nc();
-  var pipelineCamera = new Ea(-1, 1, 1, -1, 0, 2);
-  pipelineCamera.position.z = 1;
-  var pipelineMaterial = new $r({ color: 16777215, toneMapped: false });
-  var pipelineQuad = new Vs(new pa(2, 2), pipelineMaterial);
-  pipelineScene.add(pipelineQuad);
-  var camera = new Qs(50, 1, 0.01, 100);
-  camera.zoom = 1.5;
-  scene.add(new ep(16777215, 9279136, 2.2));
-  var keyLight = new mp(16777215, 4.5);
-  keyLight.position.set(5, 6, 8);
-  scene.add(keyLight);
-  var fillLight = new mp(14543103, 2.2);
-  fillLight.position.set(-5, 2, 4);
-  scene.add(fillLight);
-  new EXRLoader().load("./assets/apple-product-viewer/apple-environment.exr", (texture) => {
-    const pmrem = new Ba(renderer);
-    scene.environment = pmrem.fromEquirectangular(texture).texture;
-    texture.dispose();
-    pmrem.dispose();
-  });
-  function normalizeFold(value) {
-    return Math.max(0, Math.min(1, Number(value)));
-  }
-  function setFold(value) {
-    currentFold = normalizeFold(value);
-    slider.value = String(currentFold);
-    foldValue.value = `${Math.round(currentFold * 100)}%`;
-    slider.setAttribute("aria-valuetext", `${Math.round(currentFold * 100)}% open`);
-    if (!mixer || !sliderAction) return;
-    sliderAction.enabled = true;
-    sliderAction.paused = false;
-    mixer.setTime(currentFold * CLIP_SECONDS);
-    sliderAction.paused = true;
-  }
-  function selectPipelineStage(stage) {
-    selectedPipelineStage = stage;
-    pipelineStagesElement.querySelectorAll(".pipeline-stage").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.stage === stage.id)));
-    stageDescription.textContent = stage.description;
-    wallpaperRenderer?.setLayerCount(stage.layers);
-    const texture = wallpaperRenderer?.getDebugTexture(stage.texture);
-    if (texture && pipelineMaterial.map !== texture) {
-      pipelineMaterial.map = texture;
-      pipelineMaterial.needsUpdate = true;
-    }
-    if (productRoot) productRoot.visible = Boolean(stage.device);
-    if (stage.device) {
-      setFold(0.72);
-      Object.assign(orbit, { radius: 35, phi: Math.PI / 2, theta: Math.PI });
-      setRigState(states[0]);
-      applyOrbit();
-    }
-    resize();
-  }
   function setViewMode(mode) {
     viewMode = mode;
-    scene.background = null;
-    if (orbitControls) {
-      orbitControls.minPolarAngle = mode === "mockup" ? 0.08 : 1.1519173063162575;
-      orbitControls.maxPolarAngle = mode === "mockup" ? Math.PI - 0.08 : 2.0943951023931953;
-      orbitControls.enablePan = true;
-    }
     lessonTabs.forEach((tab) => tab.setAttribute("aria-selected", String(tab.dataset.view === mode)));
     demoPanel.hidden = mode !== "demo" && mode !== "mockup";
     mockupPanel.hidden = mode !== "mockup";
     pipelinePanel.hidden = mode !== "pipeline";
+    downloadPngButton.hidden = mode === "pipeline";
+    motion.setViewMode(mode);
     if (productRoot) productRoot.visible = mode !== "pipeline" || Boolean(selectedPipelineStage.device);
-    if (mode === "demo" || mode === "mockup") {
-      wallpaperRenderer?.setLayerCount(PASSES_LAYER_COUNT);
-      setFold(selected.fold);
-      applyView(selected);
-    } else selectPipelineStage(selectedPipelineStage);
+    if (mode === "pipeline") selectPipelineStage(selectedPipelineStage);
+    else wallpaperRenderer?.setLayerCount(PASSES_LAYER_COUNT);
   }
-  function installDynamicScreens(root, dynamicWallpaper) {
-    root.traverse((node) => {
-      if (!node.isMesh) return;
-      const mode = node.name === "skeleton_0_3_screenTexture_geo" ? "inner" : node.name === "skeleton_0_7_outerDisplayScreenTexture_geo" ? "outer" : null;
-      if (!mode) return;
-      const material = Array.isArray(node.material) ? node.material[0] : node.material;
-      if (!material) return;
-      material.map = null;
-      material.emissiveMap = dynamicWallpaper?.getTexture(mode) ?? null;
-      material.color.set(0);
-      material.emissive.set(16777215);
-      material.emissiveIntensity = dynamicWallpaper ? 1 : 0;
-      material.metalness = 0;
-      material.roughness = mode === "inner" ? 0.33 : 0.05;
-      material.toneMapped = false;
-      material.dithering = true;
-      dynamicWallpaper?.installScreen(node, mode);
-      material.needsUpdate = true;
-    });
-  }
-  function orbitFor(state) {
-    if (!frame) return;
-    if (state.orbit) {
-      const [radius, phi, theta] = state.orbit;
-      return { radius, phi, theta };
-    }
-    return { radius: 35, phi: Math.PI / 2, theta: Math.PI };
-  }
-  function applyView(state) {
-    const targetOrbit = orbitFor(state);
-    if (!targetOrbit) return;
-    Object.assign(orbit, targetOrbit);
-    setRigState(state);
-    applyOrbit();
-  }
-  function centerForCurrentView() {
-    const shouldFollow = autoCenter && selected.interactive && (viewMode === "mockup" || viewMode === "demo") && productRoot;
-    if (!shouldFollow) return viewCenter.copy(frame.center);
-    productRoot.updateWorldMatrix(true, true);
-    productRoot.traverse((node) => {
-      if (node.isSkinnedMesh) node.computeBoundingBox();
-    });
-    productBounds.setFromObject(productRoot);
-    return productBounds.isEmpty() ? viewCenter.copy(frame.center) : productBounds.getCenter(viewCenter);
-  }
-  function syncOrbitFromCamera() {
-    if (!orbitControls) return;
-    orbit.setFromVector3(camera.position.clone().sub(orbitControls.target));
-  }
-  function applyOrbit() {
-    if (!frame) return;
-    const center = centerForCurrentView();
-    camera.position.copy(center).add(new Ci().setFromSpherical(orbit));
-    camera.lookAt(center);
-    if (orbitControls) {
-      orbitControls.target.copy(center);
-      orbitControls.update();
-    }
-  }
-  function transformFor(state, key, defaults) {
-    const transform = state[key] || {};
-    return { position: transform.position || defaults.position, rotation: transform.rotation || defaults.rotation };
-  }
-  function setTransform(rig, transform) {
-    if (!rig) return;
-    rig.position.fromArray(transform.position);
-    rig.rotation.set(...transform.rotation);
-  }
-  function setRigState(state) {
-    setTransform(turntable, transformFor(state, "primary", { position: [0, 0, 0], rotation: [Math.PI / 2, Math.PI, 0] }));
-    setTransform(poseRig, transformFor(state, "pose", { position: [0, 0, 0], rotation: [0, 0, 0] }));
-    setTransform(accentRig, transformFor(state, "accent", { position: [0, 0, 0], rotation: [0, 0, 0] }));
-  }
-  function getRigState() {
-    const read = (rig) => ({ position: rig ? rig.position.toArray() : [0, 0, 0], rotation: rig ? [rig.rotation.x, rig.rotation.y, rig.rotation.z] : [0, 0, 0] });
-    return { primary: read(turntable), pose: read(poseRig), accent: read(accentRig) };
-  }
-  function interpolateTransform(rig, from, to2, amount) {
-    if (!rig) return;
-    rig.position.fromArray(from.position.map((value, index) => Jn.lerp(value, to2.position[index], amount)));
-    rig.rotation.set(...from.rotation.map((value, index) => lerpAngle(value, to2.rotation[index], amount)));
-  }
-  function updateControls(state) {
-    controls.querySelectorAll(".control").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.state === state.id)));
-    slider.disabled = !state.interactive;
-    foldControls.hidden = !state.interactive;
-  }
-  function finishTransition(target) {
-    transition = null;
-    setFold(target.fold);
-    applyView(target);
-  }
-  function transitionProfile(from, to2) {
-    if (from.id === "foldable" && to2.id === "landscape") {
-      return { duration: 1e3, easing: easeInFastOut };
-    }
-    return { duration: 620, easing: easeOutCubic };
-  }
-  function selectState(target) {
-    const from = selected;
-    selected = target;
-    updateControls(target);
-    const profile = transitionProfile(from, target);
-    const duration = reducedMotion ? 0 : profile.duration;
-    const targetOrbit = orbitFor(target);
-    const rigDefaults = { primary: { position: [0, 0, 0], rotation: [Math.PI / 2, Math.PI, 0] }, pose: { position: [0, 0, 0], rotation: [0, 0, 0] }, accent: { position: [0, 0, 0], rotation: [0, 0, 0] } };
-    const targetRig = Object.fromEntries(Object.entries(rigDefaults).map(([key, defaults]) => [key, transformFor(target, key, defaults)]));
-    transition = { target, fromFold: currentFold, fromOrbit: { ...orbit }, targetOrbit, fromRig: getRigState(), targetRig, start: performance.now(), duration, easing: profile.easing };
-    if (duration === 0) finishTransition(target);
-  }
-  function easeOutCubic(value) {
-    return 1 - Math.pow(1 - value, 3);
-  }
-  function easeInFastOut(value) {
-    return 2 * Math.pow(value, 3) - Math.pow(value, 6);
-  }
-  function lerpAngle(from, to2, amount) {
-    const delta = Jn.euclideanModulo(to2 - from + Math.PI, Math.PI * 2) - Math.PI;
-    return from + delta * amount;
-  }
-  function tick(now) {
-    if (transition) {
-      const elapsed = transition.duration === 0 ? 1 : Math.min(1, (now - transition.start) / transition.duration);
-      const progress = transition.easing(elapsed);
-      setFold(Jn.lerp(transition.fromFold, transition.target.fold, progress));
-      if (transition.targetOrbit) {
-        orbit.radius = Jn.lerp(transition.fromOrbit.radius, transition.targetOrbit.radius, progress);
-        orbit.phi = Jn.lerp(transition.fromOrbit.phi, transition.targetOrbit.phi, progress);
-        orbit.theta = lerpAngle(transition.fromOrbit.theta, transition.targetOrbit.theta, progress);
-        applyOrbit();
-      }
-      interpolateTransform(turntable, transition.fromRig.primary, transition.targetRig.primary, progress);
-      interpolateTransform(poseRig, transition.fromRig.pose, transition.targetRig.pose, progress);
-      interpolateTransform(accentRig, transition.fromRig.accent, transition.targetRig.accent, progress);
-      if (elapsed === 1) finishTransition(transition.target);
-    }
-    orbitControls?.update();
-    if (wallpaperRenderer) {
-      wallpaperRenderer.setHinge(currentFold);
-      wallpaperRenderer.render();
-    }
-    if (viewMode === "pipeline" && !selectedPipelineStage.device) {
-      const texture = wallpaperRenderer?.getDebugTexture(selectedPipelineStage.texture);
-      if (texture && pipelineMaterial.map !== texture) {
-        pipelineMaterial.map = texture;
-        pipelineMaterial.needsUpdate = true;
-        resize();
-      }
-      renderer.render(pipelineScene, pipelineCamera);
-    } else renderer.render(scene, camera);
-    requestAnimationFrame(tick);
-  }
-  function resize() {
-    const { width, height } = canvas.getBoundingClientRect();
-    renderer.setSize(width, height, false);
-    camera.aspect = width / height;
-    camera.zoom = 1.5 * Math.min(1, camera.aspect);
-    camera.updateProjectionMatrix();
-    orbitControls?.update();
-    const texture = pipelineMaterial.map;
-    const imageAspect = texture?.image?.width && texture?.image?.height ? texture.image.width / texture.image.height : 2670 / 1878;
-    const viewportAspect = width / height;
-    pipelineQuad.scale.set(viewportAspect > imageAspect ? imageAspect / viewportAspect : 1, viewportAspect > imageAspect ? 1 : viewportAspect / imageAspect, 1);
-  }
-  slider.addEventListener("input", (event) => {
-    if (!selected.interactive) return;
-    transition = null;
-    setFold(event.target.value);
-    if (autoCenter) {
-      syncOrbitFromCamera();
-      applyOrbit();
-    }
-  });
-  autoCenterButton.addEventListener("click", () => {
-    syncOrbitFromCamera();
-    autoCenter = !autoCenter;
-    autoCenterButton.setAttribute("aria-pressed", String(autoCenter));
-    if (autoCenter) applyOrbit();
-  });
-  function revealFreeView() {
-    transition = null;
-  }
-  canvas.addEventListener("pointerdown", revealFreeView);
-  canvas.addEventListener("wheel", revealFreeView, { passive: true });
-  resetView.addEventListener("click", () => {
-    transition = null;
-    applyView(selected);
-  });
   lessonTabs.forEach((tab) => tab.addEventListener("click", () => setViewMode(tab.dataset.view)));
-  function targetModes(target = mockupTarget) {
-    return target === "both" ? ["inner", "outer"] : [target];
-  }
-  function currentMockupOptions() {
-    return { fit: mockupFit.value, zoom: Number(mockupZoom.value), x: Number(mockupX.value), y: Number(mockupY.value) };
-  }
-  function applyMockupOptions() {
-    wallpaperRenderer?.setCustomOptions(currentMockupOptions(), targetModes());
-  }
-  function syncMockupControls() {
-    const mode = mockupTarget === "outer" ? "outer" : "inner";
-    const options = wallpaperRenderer?.getCustomOptions(mode) || { fit: "cover", zoom: 1, x: 0, y: 0 };
-    mockupFit.value = options.fit;
-    mockupZoom.value = String(options.zoom);
-    mockupX.value = String(options.x);
-    mockupY.value = String(options.y);
-    updateMockupDropLabel();
-  }
-  function updateMockupDropLabel() {
-    const modes = targetModes();
-    const names = [...new Set(modes.map((mode) => mockupNames[mode]).filter(Boolean))];
-    const title = names.length === 1 ? names[0] : names.length > 1 ? "Different images" : "Choose an image";
-    const detail = names.length ? "drop another to replace" : "or drop PNG, JPG, WebP or AVIF";
-    mockupDrop.querySelector("strong").textContent = title;
-    mockupDrop.querySelector("span").textContent = detail;
-  }
-  async function loadMockupFile(file) {
-    if (!file?.type.startsWith("image/")) {
-      status.textContent = "Choose a PNG, JPG, WebP or AVIF image.";
-      status.hidden = false;
-      return;
-    }
-    if (file.size > 40 * 1024 * 1024) {
-      status.textContent = "Choose an image smaller than 40 MB.";
-      status.hidden = false;
-      return;
-    }
-    const url = URL.createObjectURL(file);
-    const image = new Image();
-    image.decoding = "async";
-    image.src = url;
+  downloadPngButton.addEventListener("click", async () => {
+    if (!productRoot || downloadPngButton.disabled) return;
+    downloadPngButton.disabled = true;
+    downloadPngButton.setAttribute("aria-busy", "true");
     try {
-      await image.decode();
-      const modes = targetModes();
-      modes.forEach((mode) => {
-        mockupImages[mode] = image;
-        mockupNames[mode] = file.name;
-      });
-      wallpaperRenderer?.setCustomImage(image, modes);
-      applyMockupOptions();
-      updateMockupDropLabel();
-      mockupDrop.querySelector("span").textContent = `${image.naturalWidth} \xD7 ${image.naturalHeight} \xB7 drop another to replace`;
+      await downloadTransparentPng({ renderer: runtime.renderer, scene: runtime.scene, camera: runtime.camera });
       status.hidden = true;
-    } catch {
-      status.textContent = "This image could not be decoded.";
-      status.hidden = false;
+    } catch (error) {
+      showError("Unable to export a transparent PNG.", error);
     } finally {
-      URL.revokeObjectURL(url);
-      mockupFile.value = "";
-    }
-  }
-  mockupFile.addEventListener("change", () => loadMockupFile(mockupFile.files[0]));
-  mockupDrop.addEventListener("keydown", (event) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      mockupFile.click();
+      downloadPngButton.disabled = false;
+      downloadPngButton.removeAttribute("aria-busy");
     }
   });
-  ["dragenter", "dragover"].forEach((type) => addEventListener(type, (event) => {
-    if (viewMode !== "mockup") return;
-    event.preventDefault();
-    mockupDrop.dataset.active = "true";
-  }));
-  ["dragleave", "drop"].forEach((type) => addEventListener(type, (event) => {
-    if (viewMode !== "mockup") return;
-    event.preventDefault();
-    mockupDrop.dataset.active = "false";
-    if (type === "drop") loadMockupFile(event.dataTransfer?.files[0]);
-  }));
-  mockupTargets.forEach((button) => button.addEventListener("click", () => {
-    mockupTarget = button.dataset.target;
-    mockupTargets.forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
-    syncMockupControls();
-  }));
-  [mockupFit, mockupZoom, mockupX, mockupY].forEach((control) => control.addEventListener("input", applyMockupOptions));
-  mockupClear.addEventListener("click", () => {
-    const modes = targetModes();
-    wallpaperRenderer?.clearCustomImage(modes);
-    modes.forEach((mode) => {
-      mockupImages[mode] = null;
-      mockupNames[mode] = "";
-    });
-    updateMockupDropLabel();
+  runtime.loadEnvironment("./assets/apple-product-viewer/apple-environment.exr").catch((error) => {
+    console.error("Environment map failed to load; direct lights remain active.", error);
   });
   new GLTFLoader().load("./assets/apple-product-viewer/product-viewer.gltf", (gltf) => {
     productRoot = gltf.scene;
-    turntable = new Wl();
-    poseRig = new Wl();
-    accentRig = new Wl();
+    const turntable = new Wl();
+    const poseRig = new Wl();
+    const accentRig = new Wl();
     turntable.rotation.order = "YXZ";
     poseRig.rotation.order = "ZYX";
     accentRig.rotation.order = "YXZ";
-    installDynamicScreens(gltf.scene, wallpaperRenderer);
-    accentRig.add(gltf.scene);
+    installDynamicScreens(productRoot, wallpaperRenderer);
+    accentRig.add(productRoot);
     poseRig.add(accentRig);
     turntable.add(poseRig);
-    scene.add(turntable);
-    mixer = new am(gltf.scene);
-    sliderAction = mixer.clipAction(zd.findByName(gltf.animations, "Slider"));
+    runtime.scene.add(turntable);
+    const mixer = new am(productRoot);
+    const sliderAction = mixer.clipAction(zd.findByName(gltf.animations, "Slider"));
     sliderAction.setLoop(Re, 1);
     sliderAction.clampWhenFinished = true;
     sliderAction.play();
     sliderAction.paused = true;
-    const bounds = new Ii().setFromObject(gltf.scene);
-    const size = bounds.getSize(new Ci());
-    frame = { center: bounds.getCenter(new Ci()), distance: Math.max(size.x, size.y, size.z) * 0.9 };
-    orbitControls = new OrbitControls(camera, canvas);
-    orbitControls.enableDamping = true;
-    orbitControls.dampingFactor = 0.18;
-    orbitControls.rotateSpeed = 0.45;
-    orbitControls.zoomSpeed = 0.65;
-    orbitControls.panSpeed = 0.45;
-    orbitControls.minDistance = 16;
-    orbitControls.maxDistance = 72;
-    orbitControls.minPolarAngle = 1.1519173063162575;
-    orbitControls.maxPolarAngle = 2.0943951023931953;
-    orbitControls.target.copy(frame.center);
+    const bounds = new Ii().setFromObject(productRoot);
+    const frame = { center: bounds.getCenter(new Ci()) };
+    motion.attachModel({ mixer, sliderAction, turntable, poseRig, accentRig, productRoot, frame });
+    downloadPngButton.disabled = false;
     resize();
-    applyView(selected);
-    setFold(currentFold);
     setViewMode(viewMode);
-  }, void 0, () => {
-    status.textContent = "Unable to load model. Reload to try again.";
-    status.hidden = false;
-  });
-  createDeviceWallpaperRenderer(renderer).then((instance) => {
+  }, void 0, (error) => showError("Unable to load model. Reload to try again.", error));
+  createDeviceWallpaperRenderer(runtime.renderer).then((instance) => {
     wallpaperRenderer = instance;
     wallpaperRenderer.setLayerCount(viewMode === "pipeline" ? selectedPipelineStage.layers : PASSES_LAYER_COUNT);
-    Object.entries(mockupImages).forEach(([mode, image]) => {
-      if (image) wallpaperRenderer.setCustomImage(image, [mode]);
-    });
-    applyMockupOptions();
+    mockup.setWallpaperRenderer(instance);
     if (productRoot) installDynamicScreens(productRoot, wallpaperRenderer);
-  }).catch((error) => {
-    console.error("Dynamic wallpaper failed to load; screens remain unlit.", error);
-  });
+    if (viewMode === "pipeline") selectPipelineStage(selectedPipelineStage);
+  }).catch((error) => showError("Dynamic wallpaper failed to load; screens remain unlit.", error));
+  function resize() {
+    runtime.resize();
+    motion.updateOrbitControls();
+  }
+  function tick(now) {
+    motion.tick(now);
+    if (wallpaperRenderer) {
+      wallpaperRenderer.setHinge(motion.getFold());
+      wallpaperRenderer.render();
+    }
+    const inspectTarget = viewMode === "pipeline" && !selectedPipelineStage.device;
+    if (inspectTarget) runtime.setPipelineTexture(wallpaperRenderer?.getDebugTexture(selectedPipelineStage.texture));
+    runtime.render(inspectTarget);
+    requestAnimationFrame(tick);
+  }
   addEventListener("resize", resize);
   resize();
+  setViewMode(viewMode);
   requestAnimationFrame(tick);
 })();
 /**

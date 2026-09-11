@@ -1,6 +1,6 @@
 <!--
   [INPUT]: 依赖 main.js 的交互状态机、wallpaper-renderer.js 的屏幕像素管线，以及原始设备/壁纸资源。
-  [OUTPUT]: 提供可上传图片的 Mockup 工作区、Product Demo、WebGL Pipeline、折叠自动居中选项、GitHub 仓库入口及各自控件。
+  [OUTPUT]: 提供可上传图片及透明 PNG 导出的 Mockup 工作区、Product Demo、WebGL Pipeline、折叠自动居中选项、GitHub 仓库入口及各自控件。
   [POS]: 当前研究交付的主入口；共享一个 WebGL 画布，以 segment control 切换屏幕 mockup、产品演示和渲染管线。
   [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
 -->
@@ -31,6 +31,8 @@
       .icon-button svg { width:20px; height:20px; }
       #reset-view { position:absolute; z-index:2; right:max(24px,env(safe-area-inset-right)); top:max(24px,env(safe-area-inset-top)); width:44px; height:44px; }
       #github-link { position:absolute; z-index:2; right:max(80px,env(safe-area-inset-right) + 56px); top:max(24px,env(safe-area-inset-top)); width:44px; height:44px; text-decoration:none; }
+      #download-png { position:absolute; z-index:2; right:max(136px,env(safe-area-inset-right) + 112px); top:max(24px,env(safe-area-inset-top)); width:44px; height:44px; }
+      #download-png[aria-busy="true"] { opacity:.45; cursor:wait; }
       #lesson-switcher { position:absolute; z-index:3; top:max(24px,env(safe-area-inset-top)); left:50%; transform:translateX(-50%); display:flex; gap:3px; padding:4px; border-radius:999px; }
       .lesson-tab { min-height:36px; border:0; border-radius:999px; padding:8px 16px; color:var(--muted); background:transparent; cursor:pointer; white-space:nowrap; }
       .lesson-tab[aria-selected="true"] { color:var(--ink); background:#fff; box-shadow:0 1px 5px #0002; }
@@ -63,7 +65,7 @@
       .mockup-row input[type="range"] { width:100%; min-width:0; accent-color:var(--blue); }
       .mockup-row select { width:100%; min-height:34px; padding:0 9px; border:1px solid #0001; border-radius:10px; background:#fff; color:var(--ink); }
       .mockup-hint { margin:0 4px; color:var(--muted); font-size:11px; text-align:center; }
-      @media (max-width:700px) { .panel,.lesson-panel { bottom:max(16px,env(safe-area-inset-bottom)); gap:8px; } #controls { gap:2px; padding:5px; border-radius:22px; } .control { min-height:40px; padding:10px 12px; font-size:12px; } #reset-view { top:max(76px,env(safe-area-inset-top) + 52px); right:max(16px,env(safe-area-inset-right)); } #github-link { top:max(76px,env(safe-area-inset-top) + 52px); right:max(68px,env(safe-area-inset-right) + 52px); } #lesson-switcher { top:max(12px,env(safe-area-inset-top)); max-width:calc(100% - 24px); overflow-x:auto; } .lesson-tab { padding:8px 10px; font-size:12px; } #pipeline-panel { top:72px; left:12px; width:min(250px,calc(100% - 24px)); } #mockup-panel { top:auto; left:12px; right:12px; bottom:12px; width:auto; max-height:44vh; overflow:auto; } }
+      @media (max-width:700px) { .panel,.lesson-panel { bottom:max(16px,env(safe-area-inset-bottom)); gap:8px; } #controls { gap:2px; padding:5px; border-radius:22px; } .control { min-height:40px; padding:10px 12px; font-size:12px; } #reset-view { top:max(76px,env(safe-area-inset-top) + 52px); right:max(16px,env(safe-area-inset-right)); } #github-link { top:max(76px,env(safe-area-inset-top) + 52px); right:max(68px,env(safe-area-inset-right) + 52px); } #download-png { top:max(76px,env(safe-area-inset-top) + 52px); right:max(120px,env(safe-area-inset-right) + 104px); } #lesson-switcher { top:max(12px,env(safe-area-inset-top)); max-width:calc(100% - 24px); overflow-x:auto; } .lesson-tab { padding:8px 10px; font-size:12px; } #pipeline-panel { top:72px; left:12px; width:min(250px,calc(100% - 24px)); } #mockup-panel { top:auto; left:12px; right:12px; bottom:12px; width:auto; max-height:44vh; overflow:auto; } }
       @media (max-width:700px) { #mockup-panel { bottom:94px; max-height:42vh; } }
       @media (prefers-reduced-motion:reduce) { *,*::before,*::after { transition:none!important; animation:none!important; } }
     </style>
@@ -84,6 +86,9 @@
         <a id="github-link" class="icon-button glass" href="https://github.com/bravohenry/iphone-duo-motion-study" target="_blank" rel="noreferrer" aria-label="View source on GitHub" title="GitHub">
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .7a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2.02c-3.22.7-3.9-1.37-3.9-1.37-.52-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.71.08-.71 1.17.08 1.78 1.2 1.78 1.2 1.04 1.78 2.72 1.27 3.38.97.1-.75.4-1.27.74-1.56-2.57-.3-5.27-1.29-5.27-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.47.11-3.06 0 0 .97-.31 3.16 1.18a10.9 10.9 0 0 1 5.76 0c2.2-1.49 3.16-1.18 3.16-1.18.63 1.59.23 2.77.11 3.06.74.81 1.19 1.84 1.19 3.1 0 4.42-2.71 5.39-5.29 5.68.42.36.79 1.07.79 2.16v3.2c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .7Z"/></svg>
         </a>
+        <button id="download-png" class="icon-button glass" type="button" aria-label="Download transparent PNG" title="Download transparent PNG" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v11m0 0 4-4m-4 4-4-4M5 18v2h14v-2"/></svg>
+        </button>
         <div class="panel">
           <div id="fold-controls" class="glass">
             <input id="fold" type="range" min="0" max="1" step="0.001" value="0.333" aria-label="Fold amount" />
@@ -118,6 +123,6 @@
         <p id="status" class="glass" role="alert" hidden></p>
       </section>
     </main>
-  <script type="module" src="./main.js?v=quality-1"></script>
+  <script type="module" src="./main.js?v=export-1"></script>
   </body>
 </html>

@@ -70,4 +70,21 @@ The requested no-image handoff condition is met: all seven named states render t
 - A second amplifier was an unbounded outer-screen blur remap: at the default fold it could request nearly LOD 10 despite the shader's declared `maxBlur` of 8, pulling coarse colored mip averages into dark UI regions.
 - All screen intermediates now allocate as half-float render targets, blur LOD is capped at 8, and the final inner/outer MeshPhysical materials enable output dithering. This preserves precision through blur, prevents extreme mip color bleed and decorrelates the remaining 8-bit display quantization.
 
+## Geometry edge quality
+
+- The previous canvas used the device pixel ratio as-is, so a 1x display received no supersampling even though the polished metal silhouette contains several high-contrast subpixel curves.
+- WebGL quality now lives in `app/render-runtime.js`: native MSAA is retained, the canvas resolves directly against its known white background, and device DPR receives 25% oversampling inside an adaptive 1.5–2.5x range bounded to 8.5 million output pixels. This improves edge continuity while preventing 4K viewports from multiplying fill cost without limit.
+
+## Modular runtime regression
+
+- `main.js` is now a 147-line composition root. Product configuration, mockup input, device motion, screen material injection, render quality and WebGL runtime live in six focused modules under `app/`; no module exceeds 250 lines.
+- Rechecked the live module entry in the in-app browser: the model and wallpaper loaded, Foldable → Landscape completed, Standing → Foldable interruption returned to 33%, Mockup target controls responded, and both the flat pipeline targets and `08 Wipe` device projection remained visible.
+- On the 809 × 998 CSS-pixel QA viewport, the quality policy produced a 2022 × 2495 drawing buffer (2.5x) without surfacing a runtime error status.
+
+## Transparent PNG export
+
+- Triggered `Download transparent PNG` from the live Mockup view after the device and dynamic screens loaded. The control returned from its busy state without exposing an error status.
+- The downloaded `iphone-duo-mockup.png` is 2022 × 2495 PNG with an alpha channel. Pixel inspection reports the top-left background as `srgba(0,0,0,0)` and an interior device pixel as opaque, confirming that neither the white stage nor DOM controls entered the export.
+- The export uses its own four-sample RGBA render target and restores the live renderer target/clear state afterward; the visible canvas remains on the white-background quality path.
+
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

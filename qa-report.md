@@ -93,4 +93,10 @@ The requested no-image handoff condition is met: all seven named states render t
 - Export now combines the four-sample render target with up to 1.5x spatial supersampling under a 14-megapixel ceiling, then downsamples through a high-quality 2D canvas before PNG encoding. Output dimensions remain stable while silhouette and specular edges receive real subpixel coverage.
 - Re-exported the same 2022 × 2495 Foldable view through the live browser. The old PNG contained only five distinct alpha coverage levels; the SSAA export contains 236, while the corner remains fully transparent. This directly verifies that diagonal transparent edges are no longer limited to the coarse four-sample coverage staircase.
 
+## Alpha-bounds crop
+
+- Transparent export now scans the final downsampled Alpha channel, ignores only values at or below 2/255, and crops to the resulting model bounds with a small 8–32 px safety margin.
+- The crop is computed after SSAA downsampling so soft edge coverage participates in the bounds; it removes viewport-sized empty space without cutting the antialiased silhouette.
+- Re-exporting the same Foldable view reduced the saved canvas from 2022 × 2495 to 873 × 1394. Pixel inspection still reports 236 distinct Alpha levels and fully transparent corner pixels, confirming that the crop removes empty surround without flattening or clipping the antialiased boundary.
+
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

@@ -14609,9 +14609,12 @@
     };
   }
 
-  // app/png-exporter.js?v=2
+  // app/png-exporter.js?v=3
   var EXPORT_SSAA = 1.5;
   var MAX_EXPORT_RENDER_PIXELS = 14e6;
+  var ALPHA_THRESHOLD = 2;
+  var MIN_CROP_PADDING = 8;
+  var MAX_CROP_PADDING = 32;
   function flipAndUnpremultiply(source, width, height) {
     const output = new Uint8ClampedArray(source.length);
     const rowBytes = width * 4;
@@ -14645,6 +14648,37 @@
       height: Math.max(height, Math.floor(height * scale)),
       scale
     };
+  }
+  function cropToAlphaBounds(sourceCanvas) {
+    const { width, height } = sourceCanvas;
+    const sourceContext = sourceCanvas.getContext("2d");
+    const pixels = sourceContext.getImageData(0, 0, width, height).data;
+    let minX = width;
+    let minY = height;
+    let maxX = -1;
+    let maxY = -1;
+    for (let y2 = 0; y2 < height; y2 += 1) {
+      for (let x3 = 0; x3 < width; x3 += 1) {
+        if (pixels[(y2 * width + x3) * 4 + 3] <= ALPHA_THRESHOLD) continue;
+        minX = Math.min(minX, x3);
+        minY = Math.min(minY, y2);
+        maxX = Math.max(maxX, x3);
+        maxY = Math.max(maxY, y2);
+      }
+    }
+    if (maxX < minX || maxY < minY) return { canvas: sourceCanvas, bounds: null };
+    const contentWidth = maxX - minX + 1;
+    const contentHeight = maxY - minY + 1;
+    const padding = Math.max(MIN_CROP_PADDING, Math.min(MAX_CROP_PADDING, Math.round(Math.max(contentWidth, contentHeight) * 0.02)));
+    const left = Math.max(0, minX - padding);
+    const top = Math.max(0, minY - padding);
+    const right = Math.min(width, maxX + padding + 1);
+    const bottom = Math.min(height, maxY + padding + 1);
+    const croppedCanvas = document.createElement("canvas");
+    croppedCanvas.width = right - left;
+    croppedCanvas.height = bottom - top;
+    croppedCanvas.getContext("2d").drawImage(sourceCanvas, left, top, croppedCanvas.width, croppedCanvas.height, 0, 0, croppedCanvas.width, croppedCanvas.height);
+    return { canvas: croppedCanvas, bounds: { left, top, right, bottom, padding } };
   }
   async function downloadTransparentPng({ renderer, scene, camera, filename = "iphone-duo-mockup.png" }) {
     const size = renderer.getDrawingBufferSize(new Kn());
@@ -14687,14 +14721,15 @@
     context.imageSmoothingQuality = "high";
     context.clearRect(0, 0, width, height);
     context.drawImage(supersampledCanvas, 0, 0, width, height);
-    const blob = await canvasToBlob(exportCanvas);
+    const cropped = cropToAlphaBounds(exportCanvas);
+    const blob = await canvasToBlob(cropped.canvas);
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
     anchor.download = filename;
     anchor.click();
     setTimeout(() => URL.revokeObjectURL(url), 0);
-    return { width, height, renderWidth: renderSize.width, renderHeight: renderSize.height, sampleScale: renderSize.scale, bytes: blob.size };
+    return { width: cropped.canvas.width, height: cropped.canvas.height, sourceWidth: width, sourceHeight: height, renderWidth: renderSize.width, renderHeight: renderSize.height, sampleScale: renderSize.scale, cropBounds: cropped.bounds, bytes: blob.size };
   }
 
   // libs/fflate.module.js

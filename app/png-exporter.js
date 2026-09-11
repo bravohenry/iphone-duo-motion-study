@@ -1,13 +1,16 @@
 /**
  * [INPUT]: 依赖 Three.js renderer、当前设备 scene/camera 与浏览器 Canvas/Blob 下载能力。
- * [OUTPUT]: 提供将当前 3D 视角以 SSAA 离屏渲染、降采样并下载为透明 PNG 的异步接口。
- * [POS]: app 的文件导出边界；隔离高分辨率 GPU 回读、Y 轴翻转、透明边缘恢复和高质量缩放，不污染实时画布配置。
+ * [OUTPUT]: 提供将当前 3D 视角以 SSAA 离屏渲染、降采样、Alpha 紧边裁切并下载为透明 PNG 的异步接口。
+ * [POS]: app 的文件导出边界；隔离 GPU 回读、透明边缘恢复、高质量缩放与内容包围盒裁切，不污染实时画布配置。
  * [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md
  */
 import * as THREE from '../assets/three.module.min.js?v=165';
 
 const EXPORT_SSAA = 1.5;
 const MAX_EXPORT_RENDER_PIXELS = 14_000_000;
+const ALPHA_THRESHOLD = 2;
+const MIN_CROP_PADDING = 8;
+const MAX_CROP_PADDING = 32;
 
 function flipAndUnpremultiply(source, width, height) {
   const output = new Uint8ClampedArray(source.length);
@@ -44,6 +47,39 @@ function resolveRenderSize(width, height, maxTextureSize) {
     height: Math.max(height, Math.floor(height * scale)),
     scale,
   };
+}
+
+function cropToAlphaBounds(sourceCanvas) {
+  const { width, height } = sourceCanvas;
+  const sourceContext = sourceCanvas.getContext('2d');
+  const pixels = sourceContext.getImageData(0, 0, width, height).data;
+  let minX = width;
+  let minY = height;
+  let maxX = -1;
+  let maxY = -1;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (pixels[(y * width + x) * 4 + 3] <= ALPHA_THRESHOLD) continue;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    }
+  }
+  if (maxX < minX || maxY < minY) return { canvas: sourceCanvas, bounds: null };
+
+  const contentWidth = maxX - minX + 1;
+  const contentHeight = maxY - minY + 1;
+  const padding = Math.max(MIN_CROP_PADDING, Math.min(MAX_CROP_PADDING, Math.round(Math.max(contentWidth, contentHeight) * .02)));
+  const left = Math.max(0, minX - padding);
+  const top = Math.max(0, minY - padding);
+  const right = Math.min(width, maxX + padding + 1);
+  const bottom = Math.min(height, maxY + padding + 1);
+  const croppedCanvas = document.createElement('canvas');
+  croppedCanvas.width = right - left;
+  croppedCanvas.height = bottom - top;
+  croppedCanvas.getContext('2d').drawImage(sourceCanvas, left, top, croppedCanvas.width, croppedCanvas.height, 0, 0, croppedCanvas.width, croppedCanvas.height);
+  return { canvas: croppedCanvas, bounds: { left, top, right, bottom, padding } };
 }
 
 export async function downloadTransparentPng({ renderer, scene, camera, filename = 'iphone-duo-mockup.png' }) {
@@ -91,12 +127,13 @@ export async function downloadTransparentPng({ renderer, scene, camera, filename
   context.imageSmoothingQuality = 'high';
   context.clearRect(0, 0, width, height);
   context.drawImage(supersampledCanvas, 0, 0, width, height);
-  const blob = await canvasToBlob(exportCanvas);
+  const cropped = cropToAlphaBounds(exportCanvas);
+  const blob = await canvasToBlob(cropped.canvas);
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
   anchor.download = filename;
   anchor.click();
   setTimeout(() => URL.revokeObjectURL(url), 0);
-  return { width, height, renderWidth: renderSize.width, renderHeight: renderSize.height, sampleScale: renderSize.scale, bytes: blob.size };
+  return { width: cropped.canvas.width, height: cropped.canvas.height, sourceWidth: width, sourceHeight: height, renderWidth: renderSize.width, renderHeight: renderSize.height, sampleScale: renderSize.scale, cropBounds: cropped.bounds, bytes: blob.size };
 }

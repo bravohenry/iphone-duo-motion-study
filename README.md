@@ -29,7 +29,7 @@ Then open [http://localhost:4173/foldable-v2.html](http://localhost:4173/foldabl
 | --- | --- | --- |
 | Foldable design | Continuous folding gesture; original default is 1/3 | Range maps linearly to the original 2-second `Slider` clip |
 | Landscape → Durability | Six named, discrete viewer states | Each has a target fold point and camera composition; the same 3D model remains available for inspection at rest |
-| State transition | A change in view is interruptible | The rig and camera retarget from their current values without a fallback-image handoff |
+| State transition | A change in view is interruptible | The rig and camera retarget from their current values without a fallback-image handoff; Foldable → Landscape uses a slower 1 s ease-in/fast-out profile |
 
 The initial free-camera pose is taken from the delivered scene data, not inferred from the glTF bounds: spherical radius `35`, `phi π/2`, `theta π`, FOV `50`, zoom `1.5`; its pitch limits are `1.1519–2.0944` radians. The source pose hierarchy uses `YXZ → ZYX → YXZ` Euler orders; those orders are preserved locally so its composed reference angle does not flip to an unrelated side view. The viewer uses the same direct-delivery EXR environment map for material reflections. Orbit controls keep the source limits while offering standard mouse/touch gestures: left-drag orbit, wheel/pinch zoom, right-drag/two-finger pan, and Reset 3D view.
 

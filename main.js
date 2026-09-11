@@ -288,18 +288,28 @@ function finishTransition(target) {
   applyView(target);
 }
 
+function transitionProfile(from, to) {
+  if (from.id === 'foldable' && to.id === 'landscape') {
+    return { duration: 1000, easing: easeInFastOut };
+  }
+  return { duration: 620, easing: easeOutCubic };
+}
+
 function selectState(target) {
+  const from = selected;
   selected = target;
   updateControls(target);
-  const duration = reducedMotion ? 0 : 620;
+  const profile = transitionProfile(from, target);
+  const duration = reducedMotion ? 0 : profile.duration;
   const targetOrbit = orbitFor(target);
   const rigDefaults = { primary: { position: [0, 0, 0], rotation: [Math.PI / 2, Math.PI, 0] }, pose: { position: [0, 0, 0], rotation: [0, 0, 0] }, accent: { position: [0, 0, 0], rotation: [0, 0, 0] } };
   const targetRig = Object.fromEntries(Object.entries(rigDefaults).map(([key, defaults]) => [key, transformFor(target, key, defaults)]));
-  transition = { target, fromFold: currentFold, fromOrbit: { ...orbit }, targetOrbit, fromRig: getRigState(), targetRig, start: performance.now(), duration };
+  transition = { target, fromFold: currentFold, fromOrbit: { ...orbit }, targetOrbit, fromRig: getRigState(), targetRig, start: performance.now(), duration, easing: profile.easing };
   if (duration === 0) finishTransition(target);
 }
 
 function easeOutCubic(value) { return 1 - Math.pow(1 - value, 3); }
+function easeInFastOut(value) { return 2 * Math.pow(value, 3) - Math.pow(value, 6); }
 function lerpAngle(from, to, amount) {
   const delta = THREE.MathUtils.euclideanModulo(to - from + Math.PI, Math.PI * 2) - Math.PI;
   return from + delta * amount;
@@ -307,7 +317,7 @@ function lerpAngle(from, to, amount) {
 function tick(now) {
   if (transition) {
     const elapsed = transition.duration === 0 ? 1 : Math.min(1, (now - transition.start) / transition.duration);
-    const progress = easeOutCubic(elapsed);
+    const progress = transition.easing(elapsed);
     setFold(THREE.MathUtils.lerp(transition.fromFold, transition.target.fold, progress));
     if (transition.targetOrbit) {
       orbit.radius = THREE.MathUtils.lerp(transition.fromOrbit.radius, transition.targetOrbit.radius, progress);

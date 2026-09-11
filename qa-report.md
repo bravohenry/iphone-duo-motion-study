@@ -50,6 +50,12 @@ The requested no-image handoff condition is met: all seven named states render t
 - Auto center is opt-in. While Foldable is scrubbed, it refreshes each SkinnedMesh's deformed bounds, derives the current whole-device world-space center, and moves the camera and OrbitControls target without changing the user's radius or viewing angles.
 - Live browser checks at 0%, 50% and 100% kept the current device silhouette centered; the 0% check specifically guards against accidentally reusing the fully-open static geometry bounds.
 
+## Foldable to Landscape motion
+
+- Foldable → Landscape uses a dedicated 1 s profile instead of the global 620 ms transition. Its `2t³ − t⁶` curve keeps the first half below one-quarter progress, accelerates through the main unfolding travel, and keeps only a short landing tail.
+- Other pose changes retain the existing 620 ms ease-out curve, so this adjustment does not make the whole viewer feel slower.
+- Live frame checks at 200 ms, 500 ms, 800 ms and 1050 ms confirmed a restrained opening, a fast second-half unfold, and a stable final Landscape pose without timeline wraparound.
+
 ## Wipe projection and blur — current UI check
 
 - Corrected framebuffer-to-glTF orientation with a Y-only transform; lock-screen text is no longer mirrored or upside down, and outer-screen status/action icons occupy their intended vertical positions.

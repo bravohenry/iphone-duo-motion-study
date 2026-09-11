@@ -17574,18 +17574,29 @@ ${wipeFragmentVars}`).replace("#include <emissivemap_fragment>", wipeFragment);
     setFold(target.fold);
     applyView(target);
   }
+  function transitionProfile(from, to2) {
+    if (from.id === "foldable" && to2.id === "landscape") {
+      return { duration: 1e3, easing: easeInFastOut };
+    }
+    return { duration: 620, easing: easeOutCubic };
+  }
   function selectState(target) {
+    const from = selected;
     selected = target;
     updateControls(target);
-    const duration = reducedMotion ? 0 : 620;
+    const profile = transitionProfile(from, target);
+    const duration = reducedMotion ? 0 : profile.duration;
     const targetOrbit = orbitFor(target);
     const rigDefaults = { primary: { position: [0, 0, 0], rotation: [Math.PI / 2, Math.PI, 0] }, pose: { position: [0, 0, 0], rotation: [0, 0, 0] }, accent: { position: [0, 0, 0], rotation: [0, 0, 0] } };
     const targetRig = Object.fromEntries(Object.entries(rigDefaults).map(([key, defaults]) => [key, transformFor(target, key, defaults)]));
-    transition = { target, fromFold: currentFold, fromOrbit: { ...orbit }, targetOrbit, fromRig: getRigState(), targetRig, start: performance.now(), duration };
+    transition = { target, fromFold: currentFold, fromOrbit: { ...orbit }, targetOrbit, fromRig: getRigState(), targetRig, start: performance.now(), duration, easing: profile.easing };
     if (duration === 0) finishTransition(target);
   }
   function easeOutCubic(value) {
     return 1 - Math.pow(1 - value, 3);
+  }
+  function easeInFastOut(value) {
+    return 2 * Math.pow(value, 3) - Math.pow(value, 6);
   }
   function lerpAngle(from, to2, amount) {
     const delta = Jn.euclideanModulo(to2 - from + Math.PI, Math.PI * 2) - Math.PI;
@@ -17594,7 +17605,7 @@ ${wipeFragmentVars}`).replace("#include <emissivemap_fragment>", wipeFragment);
   function tick(now) {
     if (transition) {
       const elapsed = transition.duration === 0 ? 1 : Math.min(1, (now - transition.start) / transition.duration);
-      const progress = easeOutCubic(elapsed);
+      const progress = transition.easing(elapsed);
       setFold(Jn.lerp(transition.fromFold, transition.target.fold, progress));
       if (transition.targetOrbit) {
         orbit.radius = Jn.lerp(transition.fromOrbit.radius, transition.targetOrbit.radius, progress);

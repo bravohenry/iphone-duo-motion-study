@@ -107,5 +107,6 @@ The requested no-image handoff condition is met: all seven named states render t
 - Reduced direct-light intensity from 8.9 aggregate units to 1.78, leaving the source EXR reflections to shape polished metal. Live Foldable and Durability checks now keep the inner screen surround near black while preserving the exterior silver frame.
 - Rotated the live model to its rear in the in-app browser. Both camera lenses retained dark internal elements and colored highlights, the Apple Logo was visible against the white back, and the dynamic screen remained attached to the model.
 - Re-exported the adjusted Foldable view as a PNG. The result is tightly cropped to 944 × 1465, preserves all 256 Alpha levels, and both opposite corner pixels remain fully transparent.
+- After production deployment, exported the landing Foldable state again from `https://iphone-duo-motion-study.vercel.app/`. The resulting 777 × 1242 PNG is tightly cropped, keeps 63 Alpha coverage levels and transparent opposite corners, and visually retains a black inner carrier with separate silver exterior rails.
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

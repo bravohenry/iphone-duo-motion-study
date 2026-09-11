@@ -87,4 +87,10 @@ The requested no-image handoff condition is met: all seven named states render t
 - The downloaded `iphone-duo-mockup.png` is 2022 × 2495 PNG with an alpha channel. Pixel inspection reports the top-left background as `srgba(0,0,0,0)` and an interior device pixel as opaque, confirming that neither the white stage nor DOM controls entered the export.
 - The export uses its own four-sample RGBA render target and restores the live renderer target/clear state afterward; the visible canvas remains on the white-background quality path.
 
+## Transparent edge supersampling
+
+- The first export reused the live drawing-buffer dimensions directly. Unlike the visible canvas, the saved PNG therefore received no final downsample, leaving one-pixel stair steps on diagonal metallic highlights when inspected over black.
+- Export now combines the four-sample render target with up to 1.5x spatial supersampling under a 14-megapixel ceiling, then downsamples through a high-quality 2D canvas before PNG encoding. Output dimensions remain stable while silhouette and specular edges receive real subpixel coverage.
+- Re-exported the same 2022 × 2495 Foldable view through the live browser. The old PNG contained only five distinct alpha coverage levels; the SSAA export contains 236, while the corner remains fully transparent. This directly verifies that diagonal transparent edges are no longer limited to the coarse four-sample coverage staircase.
+
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

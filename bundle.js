@@ -14609,7 +14609,9 @@
     };
   }
 
-  // app/png-exporter.js?v=1
+  // app/png-exporter.js?v=2
+  var EXPORT_SSAA = 1.5;
+  var MAX_EXPORT_RENDER_PIXELS = 14e6;
   function flipAndUnpremultiply(source, width, height) {
     const output = new Uint8ClampedArray(source.length);
     const rowBytes = width * 4;
@@ -14634,11 +14636,22 @@
       canvas2.toBlob((blob) => blob ? resolve(blob) : reject(new Error("PNG encoding failed.")), "image/png");
     });
   }
+  function resolveRenderSize(width, height, maxTextureSize) {
+    const pixelBudgetScale = Math.sqrt(MAX_EXPORT_RENDER_PIXELS / Math.max(1, width * height));
+    const textureScale = Math.min(maxTextureSize / width, maxTextureSize / height);
+    const scale = Math.max(1, Math.min(EXPORT_SSAA, pixelBudgetScale, textureScale));
+    return {
+      width: Math.max(width, Math.floor(width * scale)),
+      height: Math.max(height, Math.floor(height * scale)),
+      scale
+    };
+  }
   async function downloadTransparentPng({ renderer, scene, camera, filename = "iphone-duo-mockup.png" }) {
     const size = renderer.getDrawingBufferSize(new Kn());
     const width = Math.max(1, Math.floor(size.x));
     const height = Math.max(1, Math.floor(size.y));
-    const target = new bi(width, height, {
+    const renderSize = resolveRenderSize(width, height, renderer.capabilities.maxTextureSize);
+    const target = new bi(renderSize.width, renderSize.height, {
       format: kt,
       type: Et,
       depthBuffer: true,
@@ -14648,24 +14661,32 @@
     const previousTarget = renderer.getRenderTarget();
     const previousColor = renderer.getClearColor(new Yr()).clone();
     const previousAlpha = renderer.getClearAlpha();
-    const pixels = new Uint8Array(width * height * 4);
+    const pixels = new Uint8Array(renderSize.width * renderSize.height * 4);
     try {
       renderer.setRenderTarget(target);
       renderer.setClearColor(0, 0);
       renderer.clear(true, true, true);
       renderer.render(scene, camera);
       renderer.setRenderTarget(previousTarget);
-      renderer.readRenderTargetPixels(target, 0, 0, width, height, pixels);
+      renderer.readRenderTargetPixels(target, 0, 0, renderSize.width, renderSize.height, pixels);
     } finally {
       renderer.setRenderTarget(previousTarget);
       renderer.setClearColor(previousColor, previousAlpha);
       target.dispose();
     }
+    const supersampledCanvas = document.createElement("canvas");
+    supersampledCanvas.width = renderSize.width;
+    supersampledCanvas.height = renderSize.height;
+    const supersampledContext = supersampledCanvas.getContext("2d");
+    supersampledContext.putImageData(new ImageData(flipAndUnpremultiply(pixels, renderSize.width, renderSize.height), renderSize.width, renderSize.height), 0, 0);
     const exportCanvas = document.createElement("canvas");
     exportCanvas.width = width;
     exportCanvas.height = height;
     const context = exportCanvas.getContext("2d");
-    context.putImageData(new ImageData(flipAndUnpremultiply(pixels, width, height), width, height), 0, 0);
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
+    context.clearRect(0, 0, width, height);
+    context.drawImage(supersampledCanvas, 0, 0, width, height);
     const blob = await canvasToBlob(exportCanvas);
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
@@ -14673,7 +14694,7 @@
     anchor.download = filename;
     anchor.click();
     setTimeout(() => URL.revokeObjectURL(url), 0);
-    return { width, height, bytes: blob.size };
+    return { width, height, renderWidth: renderSize.width, renderHeight: renderSize.height, sampleScale: renderSize.scale, bytes: blob.size };
   }
 
   // libs/fflate.module.js
